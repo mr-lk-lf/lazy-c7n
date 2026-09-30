@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/vstrofago/lazy-c7n/internal/config"
 )
 
 // Fallback size before the first WindowSizeMsg (and in tests).
@@ -46,7 +48,24 @@ func (m Model) header(width int) string {
 		}
 		parts = append(parts, style.Render(itoa(i+1)+" "+s.Title()))
 	}
-	return ansi.Truncate(lipgloss.JoinHorizontal(lipgloss.Top, parts...), width, "")
+	left := lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+
+	var info []string
+	if n := m.runningJobs(); n > 0 {
+		info = append(info, m.styles.Warn.Render("⟳ "+itoa(n)+" running"))
+	}
+	switch {
+	case m.version != "":
+		info = append(info, m.styles.Muted.Render("c7n "+m.version))
+	case m.versionErr != "":
+		info = append(info, m.styles.Danger.Render("custodian not found"))
+	}
+	right := strings.Join(info, "  ")
+	gap := width - lipgloss.Width(left) - lipgloss.Width(right) - 1
+	if right == "" || gap < 1 {
+		return ansi.Truncate(left, width, "")
+	}
+	return left + strings.Repeat(" ", gap) + right
 }
 
 func (m Model) body(width, height int) string {
@@ -60,7 +79,9 @@ func (m Model) body(width, height int) string {
 		return m.viewRuns(width, height)
 	case ScreenResources:
 		return m.viewResources(width, height)
-	case ScreenSchema, ScreenJobs:
+	case ScreenJobs:
+		return m.viewJobs(width, height)
+	case ScreenSchema:
 	}
 	return m.pane(m.screen.Title(), []string{m.styles.Muted.Render("not implemented yet")}, width, height, true)
 }
@@ -97,7 +118,15 @@ func (m Model) footer(width int) string {
 }
 
 func (m Model) runnerLabel() string {
-	return "runner: " + m.cfg.Runner.Custodian
+	switch m.cfg.Runner.Kind {
+	case config.RunnerBinary:
+		return "binary: " + m.cfg.Runner.Custodian
+	case config.RunnerCommand:
+		return "command: " + strings.Join(m.cfg.Runner.Command, " ")
+	case config.RunnerDocker:
+		return "docker: " + m.cfg.Runner.Image
+	}
+	return string(m.cfg.Runner.Kind)
 }
 
 // twoPanes lays out a list on the left and details on the right.
@@ -188,3 +217,18 @@ func scrollBy(scroll, delta, n, rows int) int {
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// rightInner is the text width of the right pane on two-pane screens.
+func (m Model) rightInner() int {
+	w, _ := m.size()
+	return max(w-leftWidth(w)-4, 10)
+}
+
+// wrapped breaks text into lines of at most width cells, each styled.
+func wrapped(style lipgloss.Style, text string, width int) []string {
+	var out []string
+	for _, l := range strings.Split(ansi.Hardwrap(text, max(width, 10), true), "\n") {
+		out = append(out, style.Render(l))
+	}
+	return out
+}

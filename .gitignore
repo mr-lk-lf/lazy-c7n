@@ -1,6 +1,7 @@
 # build output
 /lazyc7n
 /lazyc7n.exe
+/.dev-state/
 /dist/
 .env
 .venv/

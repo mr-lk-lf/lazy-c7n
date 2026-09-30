@@ -87,6 +87,26 @@ func (m Model) updatePolicies(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	st := &m.policies
 	rows := m.policyRows()
 
+	// Actions work from either pane.
+	switch {
+	case key.Matches(msg, k.DryRun):
+		return m.startDryRun()
+	case key.Matches(msg, k.Validate):
+		return m.startValidate()
+	case key.Matches(msg, k.Copy):
+		sel, err := c7n.Select(st.files, m.selectedPolicies())
+		if err != nil {
+			m.setError(err.Error())
+			return m, nil
+		}
+		cmdline := strings.Join(m.previewArgv(m.runSpec(sel, true)), " ")
+		m.setStatus("copied: " + cmdline)
+		return m, tea.SetClipboard(cmdline)
+	case key.Matches(msg, k.Reload):
+		st.loading = true
+		return m, loadPolicies(m.policyPaths())
+	}
+
 	if m.focus == paneRight {
 		n := len(m.policyDetail())
 		page := paneRows(m.bodyHeight())
@@ -140,9 +160,6 @@ func (m Model) updatePolicies(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		move(st.cursor + 1)
 	case key.Matches(msg, k.Back):
 		clear(st.marked)
-	case key.Matches(msg, k.Reload):
-		st.loading = true
-		return m, loadPolicies(m.policyPaths())
 	}
 	return m, nil
 }
@@ -288,7 +305,8 @@ func (m Model) policyDetail() []string {
 		if f.Err != nil {
 			return []string{s.Danger.Render(f.Err.Error())}
 		}
-		out := []string{s.Muted.Render(fmt.Sprintf("%d policies · enter fold · space select all", len(f.Policies))), ""}
+		n := len(f.Policies)
+		out := []string{s.Muted.Render(fmt.Sprintf("%d %s · enter fold · space select all · v validate · d dry-run", n, plural(n, "policy", "policies"))), ""}
 		actions := map[string]bool{}
 		for _, p := range f.Policies {
 			for _, a := range p.Actions {

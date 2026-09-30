@@ -16,6 +16,8 @@ import (
 
 	"github.com/vstrofago/lazy-c7n/internal/c7n"
 	"github.com/vstrofago/lazy-c7n/internal/config"
+	"github.com/vstrofago/lazy-c7n/internal/runner"
+	"github.com/vstrofago/lazy-c7n/internal/store"
 	"github.com/vstrofago/lazy-c7n/internal/ui"
 )
 
@@ -84,9 +86,18 @@ type Model struct {
 	filtering bool
 	filters   map[Screen]string
 
+	store store.Store
+	host  runner.Host
+
+	version    string // custodian version, once known
+	versionErr string
+
 	policies policiesState
 	runs     runsState
 	res      resourcesState
+	jobs     jobsState
+
+	quitArmed bool // q pressed once while jobs are running
 
 	gate      liveGate
 	status    string // one-line message in the footer
@@ -102,6 +113,8 @@ func New(cfg config.Config, opts Options) Model {
 		help:    help.New(),
 		filters: map[Screen]string{},
 	}
+	m.store = store.Store{Root: cfg.StatePath()}
+	m.host = runner.CurrentHost()
 	m.policies.collapsed = map[string]bool{}
 	m.policies.marked = map[string]bool{}
 	m.policies.loading = true
@@ -129,7 +142,8 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor,
 		loadPolicies(m.policyPaths()),
-		loadRuns(m.opts.OutputDirs),
+		m.reloadRuns(),
+		loadVersion(m.cfgRunnerArgv()),
 	)
 }
 
@@ -159,7 +173,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.runs.loading = false
 		m.runs.list = msg.runs
 		m.runs.cursor = min(m.runs.cursor, max(len(m.runRows())-1, 0))
-		m.runs.polCursor = 0
+		if m.runs.selectID != "" {
+			for i, idx := range m.runRows() {
+				if m.runs.list[idx].ID == m.runs.selectID {
+					m.runs.cursor, m.runs.polCursor = i, 0
+				}
+			}
+			m.runs.selectID = ""
+		}
 		if msg.err != "" {
 			m.setError(msg.err)
 		}
@@ -174,6 +195,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case liveRunStartedMsg:
 		m.setStatus(liveRunStatus(msg.req))
 
+	case versionMsg:
+		m.version, m.versionErr = msg.version, msg.err
+		if msg.err != "" {
+			m.setError(msg.err)
+		}
+	case jobStartedMsg, jobFailedMsg, jobOutputMsg, jobDoneMsg, jobSavedMsg:
+		return m.updateJobMsg(msg)
+
 	case tea.KeyPressMsg:
 		return m.updateKey(msg)
 	}
@@ -182,7 +211,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.Mod == tea.ModCtrl && msg.Code == 'c' {
-		return m, tea.Quit // quitting never runs anything, so it is always allowed
+		return m, m.quit() // quitting never runs anything, so it is always allowed
 	}
 	if m.gate.open() {
 		// While the gate is open every key goes to it: no screen changes,
@@ -199,9 +228,17 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateFilter(msg), nil
 	}
 
+	if !key.Matches(msg, m.keys.Quit) {
+		m.quitArmed = false
+	}
 	switch {
 	case key.Matches(msg, m.keys.Quit):
-		return m, tea.Quit
+		if n := m.runningJobs(); n > 0 && !m.quitArmed {
+			m.quitArmed = true
+			m.setError(itoa(n) + " job(s) still running: press q again to cancel and quit")
+			return m, nil
+		}
+		return m, m.quit()
 	case key.Matches(msg, m.keys.NextScreen):
 		m.switchScreen(m.screen.offset(1))
 		return m, nil
@@ -227,6 +264,10 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		delete(m.filters, m.screen)
 		return m, nil
 	case key.Matches(msg, m.keys.LiveRun):
+		if m.screen != ScreenPolicies {
+			m.setError("live runs start from the Policies screen (1)")
+			return m, nil
+		}
 		m.openLiveGate()
 		return m, nil
 	}
@@ -238,9 +279,25 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.updateRuns(msg)
 	case ScreenResources:
 		return m.updateResources(msg)
-	case ScreenSchema, ScreenJobs:
+	case ScreenJobs:
+		return m.updateJobs(msg)
+	case ScreenSchema:
 	}
 	return m, nil
+}
+
+// quit cancels running jobs (custodian gets an interrupt) and exits.
+func (m Model) quit() tea.Cmd {
+	var cmds []tea.Cmd
+	for _, j := range m.jobs.list {
+		if j.running() && j.job != nil {
+			cmds = append(cmds, cancelJob(j.job))
+		}
+	}
+	if len(cmds) == 0 {
+		return tea.Quit
+	}
+	return tea.Sequence(tea.Batch(cmds...), tea.Quit)
 }
 
 func (m *Model) switchScreen(s Screen) {
@@ -280,7 +337,9 @@ func (m *Model) resetCursor() {
 		m.runs.cursor, m.runs.polCursor = 0, 0
 	case ScreenResources:
 		m.res.cursor, m.res.scroll = 0, 0
-	case ScreenSchema, ScreenJobs:
+	case ScreenJobs:
+		m.jobs.cursor = 0
+	case ScreenSchema:
 	}
 }
 

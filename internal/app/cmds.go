@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/vstrofago/lazy-c7n/internal/c7n"
+	"github.com/vstrofago/lazy-c7n/internal/store"
 )
 
 type policiesLoadedMsg struct{ files []c7n.PolicyFile }
@@ -65,10 +66,26 @@ type runsLoadedMsg struct {
 	err  string
 }
 
-func loadRuns(outputDirs []string) tea.Cmd {
+func loadRuns(st store.Store, outputDirs []string) tea.Cmd {
 	return func() tea.Msg {
 		var runs []runEntry
 		var errs []string
+		stored, err := st.List()
+		if err != nil {
+			errs = append(errs, "run history: "+err.Error())
+		}
+		for _, r := range stored {
+			e := runEntry{
+				ID: r.ID, Kind: r.Kind, Started: r.Started, Ended: r.Ended,
+				LogPath: r.StderrPath(), Argv: r.Argv, Backend: r.Backend,
+				Finished: r.Finished, ExitCode: r.ExitCode, Err: r.Error,
+			}
+			if r.Kind != "validate" {
+				e.OutDir = r.OutDir()
+				e.Policies, _ = c7n.ReadOutputDir(e.OutDir) // none yet while starting
+			}
+			runs = append(runs, e)
+		}
 		for _, dir := range outputDirs {
 			e := runEntry{ID: dir, Kind: "dir", OutDir: dir, Finished: true}
 			pols, err := c7n.ReadOutputDir(dir)

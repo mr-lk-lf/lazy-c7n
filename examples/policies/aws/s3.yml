@@ -1,0 +1,31 @@
+# S3 examples. Safe to try against a local emulator (scripts/floci-dev.sh).
+policies:
+  - name: s3-untagged-owner
+    resource: aws.s3
+    description: Tag buckets that have no owner tag.
+    filters:
+      - "tag:owner": absent
+    actions:
+      - type: tag
+        key: owner
+        value: unknown
+
+  - name: s3-owner-report
+    resource: aws.s3
+    description: List buckets that do have an owner (report only).
+    filters:
+      - "tag:owner": present
+
+  - name: s3-daily-owner-check
+    resource: aws.s3
+    description: Same check every day, as a Lambda (a live run deploys it).
+    mode:
+      type: periodic
+      schedule: "rate(1 day)"
+      role: arn:aws:iam::000000000000:role/custodian
+    filters:
+      - "tag:owner": absent
+    actions:
+      - type: tag
+        key: owner
+        value: unknown

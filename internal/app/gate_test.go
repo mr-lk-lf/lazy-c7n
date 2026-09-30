@@ -7,6 +7,8 @@ package app
 
 import (
 	"math/rand/v2"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -60,6 +62,7 @@ func seq(parts ...any) []tea.Msg {
 // Policies without a file or line get distinct ones.
 func withSelection(cfg config.Config, policies ...c7n.Policy) Model {
 	m := New(cfg, Options{})
+	m.store.Root = filepath.Join(os.TempDir(), "lazyc7n-gate-tests") // never the real state dir
 	m.policies.loading = false
 	for i := range policies {
 		if policies[i].File == "" {
@@ -386,5 +389,15 @@ func TestMismatchMessageClearsWhenTypingAgain(t *testing.T) {
 	m, _ = drive(m, seq(typed("e")))
 	if m.gate.mismatch || strings.Contains(plain(m), "does not match") {
 		t.Fatal("mismatch message still shown while retyping")
+	}
+}
+
+func TestLiveRunOnlyFromPolicies(t *testing.T) {
+	m, _ := drive(withSelection(config.Default(), ec2Stop), seq(press('2', "2"), liveKey))
+	if m.gate.open() || !strings.Contains(m.status, "Policies screen") {
+		t.Fatalf("gate=%v status=%q", m.gate.open(), m.status)
+	}
+	if _, runs := drive(m, seq(typed("ec2-stop"), enter)); len(runs) > 0 {
+		t.Fatal("ran from the Runs screen")
 	}
 }

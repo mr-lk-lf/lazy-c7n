@@ -63,7 +63,7 @@ func TestUnknownKeysAreIgnored(t *testing.T) {
 func TestProjectFileOverridesOnlyItsKeys(t *testing.T) {
 	dir := t.TempDir()
 	isolateUserConfig(t)
-	write(t, dir, ProjectFile, "policy_dirs = [\"a\", \"b\"]\n[runner]\nkind = \"command\"\n")
+	write(t, dir, ProjectFile, "policy_dirs = [\"a\", \"b\"]\n[runner]\nkind = \"command\"\ncommand = [\"uvx\", \"custodian\"]\n")
 	cfg, err := Load("", dir)
 	if err != nil {
 		t.Fatal(err)
@@ -154,5 +154,24 @@ func TestEmptyConfirmValueFailsClosed(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := Load(write(t, dir, "c.toml", "[safety]\nconfirm_live = \"\"\n"), dir); err == nil {
 		t.Fatal("empty confirm_live loaded")
+	}
+}
+
+func TestCommandRunnerNeedsCommand(t *testing.T) {
+	dir := t.TempDir()
+	_, err := Load(write(t, dir, "c.toml", "[runner]\nkind = \"command\"\n"), dir)
+	if err == nil || !strings.Contains(err.Error(), "runner.command") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestStatePath(t *testing.T) {
+	cfg := Default()
+	if !strings.HasSuffix(cfg.StatePath(), "lazyc7n") {
+		t.Fatalf("default state path %q", cfg.StatePath())
+	}
+	cfg.StateDir = "/tmp/x"
+	if cfg.StatePath() != "/tmp/x" {
+		t.Fatalf("state path %q", cfg.StatePath())
 	}
 }

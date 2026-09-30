@@ -35,15 +35,24 @@ const ConfirmTypeName ConfirmLive = "type-name"
 
 type Config struct {
 	PolicyDirs []string `toml:"policy_dirs"`
-	Runner     Runner   `toml:"runner"`
-	Defaults   Defaults `toml:"defaults"`
-	Safety     Safety   `toml:"safety"`
+	// StateDir holds run history and caches; empty = $XDG_STATE_HOME/lazyc7n.
+	StateDir string `toml:"state_dir"`
+	// KeepRuns is how many runs to keep in the history (0 = all).
+	KeepRuns int      `toml:"keep_runs"`
+	Runner   Runner   `toml:"runner"`
+	Defaults Defaults `toml:"defaults"`
+	Safety   Safety   `toml:"safety"`
 }
 
 type Runner struct {
 	Kind      RunnerKind `toml:"kind"`
-	Custodian string     `toml:"custodian"`
-	Command   []string   `toml:"command"`
+	Custodian string     `toml:"custodian"` // binary: name or path
+	Command   []string   `toml:"command"`   // command: prefix, e.g. ["uvx", "--from", "c7n", "custodian"]
+
+	// docker backend (SPEC §3).
+	Docker     string   `toml:"docker"`      // docker (or podman) executable
+	Image      string   `toml:"image"`       // c7n image
+	DockerArgs []string `toml:"docker_args"` // extra `docker run` args, e.g. ["--network", "host"]
 }
 
 type Defaults struct {
@@ -62,9 +71,23 @@ type Safety struct {
 func Default() Config {
 	return Config{
 		PolicyDirs: []string{"./policies"},
-		Runner:     Runner{Kind: RunnerBinary, Custodian: "custodian"},
-		Safety:     Safety{DefaultDryRun: true, ConfirmLive: ConfirmTypeName},
+		KeepRuns:   200,
+		Runner: Runner{
+			Kind:      RunnerBinary,
+			Custodian: "custodian",
+			Docker:    "docker",
+			Image:     "cloudcustodian/c7n",
+		},
+		Safety: Safety{DefaultDryRun: true, ConfirmLive: ConfirmTypeName},
 	}
+}
+
+// StatePath is the state directory: StateDir, or $XDG_STATE_HOME/lazyc7n.
+func (c Config) StatePath() string {
+	if c.StateDir != "" {
+		return c.StateDir
+	}
+	return filepath.Join(xdg.StateHome, "lazyc7n")
 }
 
 // UserConfigPath is $XDG_CONFIG_HOME/lazyc7n/config.toml (platform
@@ -115,6 +138,12 @@ func (c Config) Validate() error {
 		errs = append(errs, errors.New(`safety.confirm_live: "yes-no" is not supported in this version; remove the key or set it to "type-name"`))
 	default:
 		errs = append(errs, fmt.Errorf("safety.confirm_live: unknown value %q (want type-name)", c.Safety.ConfirmLive))
+	}
+	if c.Runner.Kind == RunnerCommand && len(c.Runner.Command) == 0 {
+		errs = append(errs, errors.New(`runner.command: required when runner.kind = "command"`))
+	}
+	if c.KeepRuns < 0 {
+		errs = append(errs, errors.New("keep_runs: must be 0 (keep all) or more"))
 	}
 	return errors.Join(errs...)
 }

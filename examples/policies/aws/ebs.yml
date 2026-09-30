@@ -1,0 +1,9 @@
+policies:
+  - name: ebs-unattached-delete
+    resource: aws.ebs
+    description: Delete volumes that are not attached to anything.
+    filters:
+      - Attachments: []
+      - "tag:keep": absent
+    actions:
+      - delete

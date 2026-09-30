@@ -15,14 +15,16 @@ const fixtures = "../../tests/fixtures/real/c7n-0.9.52-floci"
 // running the load commands the way the Bubble Tea runtime would.
 func loaded(t *testing.T) Model {
 	t.Helper()
-	m := New(config.Default(), Options{
+	cfg := config.Default()
+	cfg.StateDir = t.TempDir()
+	m := New(cfg, Options{
 		PolicyPaths: []string{fixtures + "/policies.yml"},
 		OutputDirs:  []string{fixtures + "/dryrun/out", fixtures + "/live-periodic/out"},
 	})
 	m, _ = send(m,
 		tea.WindowSizeMsg{Width: 120, Height: 30},
 		loadPolicies(m.policyPaths())(),
-		loadRuns(m.opts.OutputDirs)(),
+		m.reloadRuns()(),
 	)
 	return m
 }

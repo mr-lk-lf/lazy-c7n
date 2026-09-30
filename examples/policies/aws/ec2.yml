@@ -1,0 +1,33 @@
+policies:
+  - name: ec2-mark-stop
+    resource: aws.ec2
+    description: Mark running instances to be stopped tomorrow.
+    filters:
+      - "State.Name": running
+      - "tag:keep": absent
+    actions:
+      - type: mark-for-op
+        op: stop
+        days: 1
+
+  - name: ec2-stop-marked
+    resource: aws.ec2
+    description: Stop instances whose stop date has come.
+    filters:
+      - type: marked-for-op
+        op: stop
+    actions:
+      - stop
+
+  - name: ec2-terminate-untagged
+    resource: aws.ec2
+    description: Terminate instances with no owner (destructive!).
+    filters:
+      - "tag:owner": absent
+    actions:
+      - type: notify
+        to: [ops@example.com]
+        transport:
+          type: sqs
+          queue: https://sqs.us-east-1.amazonaws.com/000000000000/custodian
+      - terminate

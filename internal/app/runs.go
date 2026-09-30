@@ -27,7 +27,8 @@ type runsState struct {
 	polCursor int // right: policies of the run
 	view      runView
 	log       logLoadedMsg
-	scroll    int // log scroll
+	scroll    int    // log scroll
+	selectID  string // run to put the cursor on after the next load
 }
 
 // runRows are indexes into runs.list after the "/" filter.
@@ -172,7 +173,7 @@ func (m Model) updateRuns(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) reloadRuns() tea.Cmd {
-	return loadRuns(m.opts.OutputDirs)
+	return loadRuns(m.store, m.opts.OutputDirs)
 }
 
 func (m Model) viewRuns(width, height int) string {
@@ -275,7 +276,7 @@ func (m Model) runDetail(r runEntry, visible, width int) []string {
 	}
 	out = append(out, s.Muted.Render(strings.Join(facts, " · ")))
 	if len(r.Argv) > 0 {
-		out = append(out, s.Item.Render("$ "+strings.Join(r.Argv, " ")))
+		out = append(out, wrapped(s.Item, "$ "+strings.Join(r.Argv, " "), width-4)...)
 	}
 	if r.OutDir != "" {
 		out = append(out, s.Muted.Render("output: "+shortPath(r.OutDir)))

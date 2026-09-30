@@ -1,0 +1,53 @@
+lazy-c7n — próximos pasos (actualizado 2026-09-30, commit 315326f)
+======================================================================
+
+CÓMO RETOMAR
+------------
+1. cd ~/Documents/harder-better-faster-stronger/10-Projects/lazy-c7n && claude
+2. Pega este prompt de apertura:
+
+   Lee CLAUDE.md, docs/SPEC.md, docs/HANDOFF.md y docs/NEXT-STEPS.txt.
+   Seguimos con el paso 1 de NEXT-STEPS (la confirmación de runs live).
+   Estas son mis decisiones de UX: <pega aquí tus respuestas a las 3 preguntas de abajo>.
+
+DÓNDE ESTAMOS
+-------------
+- Stack: Go + Bubble Tea v2 / Lip Gloss v2 / Bubbles v2 (motivo en SPEC §7).
+- M0 casi terminado: config, 5 pestañas vacías, badge DRY/LIVE, ayuda de teclas,
+  tema claro/oscuro, tests y CI en verde (Linux, macOS, Windows).
+- Todo lo de c7n 0.9.52 verificado contra moto; fixtures reales en
+  tests/fixtures/real/c7n-0.9.52-moto/.
+- Repo privado: https://github.com/vstrofago/lazy-c7n
+
+PRÓXIMOS PASOS
+--------------
+1. Confirmación de runs live (paso 4 de M0, SPEC §6). Es la pieza crítica.
+   Necesito tus decisiones como PM antes de empezar:
+   a) Texto exacto de la pantalla de confirmación (qué se muestra y qué se
+      pide escribir: el nombre de la policy, "ALL" para varias...).
+   b) ¿Permitimos el modo "yes-no" en v0, o solo "escribir el nombre"?
+   c) Cómo se ve la confirmación extra para modos que no son "pull"
+      (periodic, cloudtrail, config-rule...), que despliegan una Lambda.
+   Se implementa con tests que intentan saltarse la confirmación
+   (nombre incorrecto, Esc, cambiar de pestaña, pulsar R dos veces, config
+   debilitada).
+
+2. M1: navegador de solo lectura (primer candidato a release).
+   - Encontrar policies en disco (SPEC §9.4: propuesta = buscar *.yml/*.yaml
+     con clave "policies:" dentro de policy_dirs).
+   - Elegir librería YAML (SPEC §9.2).
+   - Pantalla Policies: árbol de carpetas/ficheros/policies, vista YAML,
+     acciones peligrosas resaltadas.
+   - Pantallas Runs y Resources leyendo una carpeta de salida de c7n
+     existente (lazyc7n -output <dir>), probadas con los fixtures reales.
+
+3. docs/manual-testing.md: tu checklist de pruebas como tester, contra moto
+   (o Floci).
+
+PENDIENTE DE TU LADO (opcional)
+-------------------------------
+- Para probar Floci y el backend Docker:
+    sudo usermod -aG docker $USER   (y volver a iniciar sesión)
+- Antes de publicar: comprobar que el nombre "lazyc7n" no choca en
+  GitHub/Homebrew/AUR (SPEC §9.1) y hacer el repo público:
+    gh repo edit vstrofago/lazy-c7n --visibility public --accept-visibility-change-consequences

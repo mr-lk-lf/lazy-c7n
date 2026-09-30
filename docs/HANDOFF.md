@@ -1,6 +1,7 @@
 # Handoff — read this first in a new session
 
 Everything decided so far is in `docs/SPEC.md`; this file is the short "where we are / what's next".
+For the user (Spanish, with an opening prompt to paste): `docs/NEXT-STEPS.txt`.
 
 ## Roles
 - The user is the **PM and final tester** (heavy c7n user, not a Go developer): they steer, Claude implements. Priorities, in order: stability, code simple enough to maintain by hand one day, a rich and pleasant UI.

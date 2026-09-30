@@ -108,7 +108,7 @@ No database. Plain files only.
   cache_period = ""          # passthrough, optional
   [safety]
   default_dry_run = true     # changing this to false is allowed but shows a warning
-  confirm_live = "type-name" # type-name | yes-no
+  confirm_live = "type-name" # only value in v0; "yes-no" is rejected at startup (PM decision 2026-09-30)
   ```
 - **State dir** (`$XDG_STATE_HOME/lazyc7n/`):
   ```
@@ -125,13 +125,18 @@ No database. Plain files only.
 
 1. **Dry-run by default.** The `d` key is dry-run; live run is a different key (`R`, shift) and a different badge colour.
 2. **Pre-flight summary before any live run**: exact command line, policy names, region(s), backend, and the **actions** each policy will perform.
-3. **Action classification** (static, by c7n action `type`):
-   - *destructive*: `terminate`, `delete`, `stop`, `detach`, `release`, `deregister`, `remove-*`, `set-*` that remove access, etc. (list lives in code, is data-driven, and is overridable in config)
-   - *mutating*: `tag`, `mark-for-op`, `modify-*`, `set-*`, …
-   - *notify-only*: `notify`, `post-finding`, …
-   - Unknown action types are treated as **mutating** (fail closed).
-4. **Confirmation gate** for live runs: default `type-name` = user must type the policy name (or `ALL` for multi-policy). Extra red warning when any destructive action is present. Never skippable by a config key in a way that is silent; if `confirm_live` is weakened, the status bar shows it.
-5. **Non-`pull` modes warning [verified c7n 0.9.52]**: every mode other than `pull` (`periodic`, `schedule`, `phd`, `cloudtrail`, `ec2-instance-state`, `asg-instance-state`, `guard-duty`, `config-poll-rule`, `config-rule`, `hub-finding`, `hub-action`) is a serverless mode. Source (`c7n/policy.py`, `Policy.__call__`): with `--dryrun` **any** mode is evaluated once as `pull` (runtime-only filters trimmed, actions skipped), so dry-run is safe for them. **Without** `--dryrun` a serverless mode calls `provision()`: it creates/updates the Lambda function and its event source (CloudWatch Events rule, Config rule, …) and does **not** evaluate resources (no `resources.json`). Confirmed on the emulator: the live run of a `periodic` policy called `lambda:CreateFunction`. lazy-c7n flags these policies explicitly and (v0) blocks live-running them unless an "I understand this deploys infrastructure" confirmation is given. Mode list source of truth: `custodian schema mode`.
+3. **Action classification** (static, by c7n action `type`; `internal/c7n/safety.go`, lists built from the 170 AWS action names of c7n 0.9.52):
+   - *destructive*: `terminate`, `delete`, `delete-*`, `stop`, `detach`, `release`, `deregister`, `disable`, `disassociate`, `suspend`, `pause`, `reboot`, `cancel`, `revoke-access`, `schedule-deletion`, `trim-versions`, `remove-*` (except `remove-tag`)
+   - *notify-only*: `notify`, `post-finding`, `post-item`, `put-metric`, `webhook`, `no-op`
+   - *mutating*: everything else (`tag`, `mark-for-op`, `modify-*`, `set-*`, `invoke-lambda`, …). Unknown action types are **mutating** (fail closed).
+   - Overriding these lists from the config: not in v0 (planned for M3).
+4. **Confirmation gate** for live runs (`internal/app/gate.go`, tests in `gate_test.go`; PM decisions 2026-09-30):
+   - `R` opens a full-body red dialog listing each policy (name, resource, actions, `[destructive]`, `[mode X: deploys Lambda]`), the exact command line (once the runner exists), the backend, and a red `!! N policies have DESTRUCTIVE actions: …` line when relevant.
+   - The user types, exactly (case-sensitive, surrounding spaces ignored): the **policy name** for one policy, the **number of policies** (e.g. `3`) for several. `ALL` was rejected: typing the number forces looking at the list.
+   - A wrong answer runs nothing, clears the input and shows "does not match"; Esc closes the dialog at any step; ctrl+c quits the app. While the dialog is open every other key is typed text (no tab switching, `q` does not quit, a second `R` is a letter). Pasting is allowed, but a pasted newline never acts as Enter.
+   - The dialog confirms a frozen copy of the request: changing the selection behind it cannot change what runs.
+   - Only one mode, `type-name`: `confirm_live = "yes-no"` is rejected at startup in v0 (fail closed). The gate itself never reads the config.
+5. **Non-`pull` modes warning [verified c7n 0.9.52]**: every mode other than `pull` (`periodic`, `schedule`, `phd`, `cloudtrail`, `ec2-instance-state`, `asg-instance-state`, `guard-duty`, `config-poll-rule`, `config-rule`, `hub-finding`, `hub-action`) is a serverless mode. Source (`c7n/policy.py`, `Policy.__call__`): with `--dryrun` **any** mode is evaluated once as `pull` (runtime-only filters trimmed, actions skipped), so dry-run is safe for them. **Without** `--dryrun` a serverless mode calls `provision()`: it creates/updates the Lambda function and its event source (CloudWatch Events rule, Config rule, …) and does **not** evaluate resources (no `resources.json`). Confirmed on the emulator: the live run of a `periodic` policy called `lambda:CreateFunction`. lazy-c7n flags these policies explicitly and, after the normal confirmation, shows a second step ("DEPLOYS INFRASTRUCTURE · step 2/2": what gets created, the non-pull policies and their mode) where the user must type `DEPLOY`. Unknown modes count as non-pull (fail closed). Mode list source of truth: `custodian schema mode`.
 6. **Credentials never shown**: only non-secret context (profile name, region, account id *if already present in c7n output*). Env var values matching `*KEY*|*SECRET*|*TOKEN*` are never rendered or logged.
 7. **Audit trail**: every run, dry or live, has a `run.json` with the full argv (secrets redacted).
 8. **No implicit live**: there is no CLI flag that skips the gate in interactive mode. (A future non-interactive `lazyc7n run --yes` for scripts, if ever added, must be explicit and documented as a scripting escape hatch.)

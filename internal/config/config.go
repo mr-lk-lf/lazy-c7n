@@ -28,10 +28,10 @@ const (
 
 type ConfirmLive string
 
-const (
-	ConfirmTypeName ConfirmLive = "type-name"
-	ConfirmYesNo    ConfirmLive = "yes-no"
-)
+// ConfirmTypeName is the only confirmation mode in v0: the user types the
+// policy name (or the number of policies). A weaker "yes-no" mode was
+// considered and rejected for v0.
+const ConfirmTypeName ConfirmLive = "type-name"
 
 type Config struct {
 	PolicyDirs []string `toml:"policy_dirs"`
@@ -110,9 +110,11 @@ func (c Config) Validate() error {
 		errs = append(errs, fmt.Errorf("runner.kind: unknown value %q (want binary, docker or command)", c.Runner.Kind))
 	}
 	switch c.Safety.ConfirmLive {
-	case ConfirmTypeName, ConfirmYesNo:
+	case ConfirmTypeName:
+	case "yes-no":
+		errs = append(errs, errors.New(`safety.confirm_live: "yes-no" is not supported in this version; remove the key or set it to "type-name"`))
 	default:
-		errs = append(errs, fmt.Errorf("safety.confirm_live: unknown value %q (want type-name or yes-no)", c.Safety.ConfirmLive))
+		errs = append(errs, fmt.Errorf("safety.confirm_live: unknown value %q (want type-name)", c.Safety.ConfirmLive))
 	}
 	return errors.Join(errs...)
 }

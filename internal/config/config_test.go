@@ -128,3 +128,31 @@ func TestInvalidTomlIsAnError(t *testing.T) {
 		t.Fatal("expected parse error")
 	}
 }
+
+// yes-no was rejected for v0 (PM decision, 2026-09-30): only typed
+// confirmation. A config asking for it must not load at all.
+func TestYesNoConfirmationIsRejected(t *testing.T) {
+	dir := t.TempDir()
+	_, err := Load(write(t, dir, "c.toml", "[safety]\nconfirm_live = \"yes-no\"\n"), dir)
+	if err == nil || !strings.Contains(err.Error(), "not supported") {
+		t.Fatalf("err = %v", err)
+	}
+
+	isolateUserConfig(t)
+	if err := os.MkdirAll(filepath.Dir(UserConfigPath()), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(UserConfigPath(), []byte("[safety]\nconfirm_live = \"yes-no\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load("", t.TempDir()); err == nil {
+		t.Fatal("yes-no in the user config loaded")
+	}
+}
+
+func TestEmptyConfirmValueFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := Load(write(t, dir, "c.toml", "[safety]\nconfirm_live = \"\"\n"), dir); err == nil {
+		t.Fatal("empty confirm_live loaded")
+	}
+}

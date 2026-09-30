@@ -21,6 +21,12 @@ type Styles struct {
 	DryBadge  lipgloss.Style
 	LiveBadge lipgloss.Style
 	Status    lipgloss.Style
+
+	// Live-run gate.
+	GatePane lipgloss.Style
+	Danger   lipgloss.Style // destructive actions, deploy warnings
+	Warn     lipgloss.Style
+	Input    lipgloss.Style
 }
 
 // Palette colors. Live/destructive is always red; dry-run always green.
@@ -35,6 +41,8 @@ var (
 	textDark    = lipgloss.Color("#E4E4EC")
 	green       = lipgloss.Color("#2EB872")
 	red         = lipgloss.Color("#E5484D")
+	amberLight  = lipgloss.Color("#B26A00")
+	amberDark   = lipgloss.Color("#F5A524")
 	white       = lipgloss.Color("#FFFFFF")
 	black       = lipgloss.Color("#101014")
 )
@@ -65,5 +73,12 @@ func NewStyles(dark bool) Styles {
 		DryBadge:  pill(green, black),
 		LiveBadge: pill(red, white),
 		Status:    lipgloss.NewStyle().Foreground(muted),
+		GatePane: lipgloss.NewStyle().
+			Border(lipgloss.ThickBorder()).
+			BorderForeground(red).
+			Padding(0, 1),
+		Danger: lipgloss.NewStyle().Bold(true).Foreground(red),
+		Warn:   lipgloss.NewStyle().Foreground(ld(amberLight, amberDark)),
+		Input:  lipgloss.NewStyle().Bold(true).Foreground(text),
 	}
 }

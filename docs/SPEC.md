@@ -136,61 +136,66 @@ No database. Plain files only.
 7. **Audit trail**: every run, dry or live, has a `run.json` with the full argv (secrets redacted).
 8. **No implicit live**: there is no CLI flag that skips the gate in interactive mode. (A future non-interactive `lazyc7n run --yes` for scripts, if ever added, must be explicit and documented as a scripting escape hatch.)
 
-## 7. Architecture (Rust)
+## 7. Architecture (Go + Bubble Tea)
 
-Stack (resolve exact versions with `cargo add` at scaffold time; do not guess versions):
-- `ratatui` + `crossterm` (TUI); follow the official ratatui async/Elm ("The Elm Architecture") template.
-- `tokio` (process supervision, streaming, file watching ticks).
-- `serde`, `serde_json`; YAML via a maintained serde-compatible crate (`serde_yaml` is unmaintained — evaluate `serde_yaml_ng`/`serde_norway`/`yaml-rust2`) — only needed for *display/summary*, unknown keys must be preserved/ignored, never fail on unknown c7n fields.
-- `clap` (CLI entry + future subcommands), `toml`, `directories` (XDG paths), `anyhow` + `thiserror`.
-- Syntax highlighting for YAML/JSON: `syntect` or a small hand-rolled highlighter (decide after spike; keep binary size in mind).
-- Testing: `insta` (snapshots) with ratatui `TestBackend`, `assert_cmd`/`tempfile` for process tests.
+**Stack decision (2026-09-30, replaces the initial Rust/ratatui choice).** The maintainer is a PM/tester who may one day need to maintain the code by hand, and wants a rich, pleasant UI and stability. Go + the Charm stack wins on all three: Go is quick to learn and reads plainly; Charm's components and styling give a polished UI with little code; Bubble Tea/Lip Gloss/Bubbles are on stable semver v2 (ratatui is still 0.x) and Go keeps its compatibility promise. What Rust gave us (compile-time exhaustive matching for the safety gate) is replaced by the `exhaustive` linter in CI plus mandatory state-machine tests.
 
-Module sketch:
+Stack (add/upgrade dependencies with `go get <module>@latest`; never type versions from memory):
+- TUI: `charm.land/bubbletea/v2` (Elm architecture: `Init`/`Update`/`View`), `charm.land/lipgloss/v2` (styling, adaptive light/dark theme), `charm.land/bubbles/v2` (list, table, viewport, textinput, spinner, help/key bindings). Candidates for later: Huh (forms) for the live-run confirmation and Glamour (markdown rendering) for schema help; check their current module path and major version when adding them.
+- Config: `github.com/BurntSushi/toml`; XDG paths: `github.com/adrg/xdg` (config and, later, state dir).
+- JSON: stdlib `encoding/json` (decode into lenient structs / `map[string]any`; unknown fields are ignored by default).
+- YAML: open question §9.2 (`go.yaml.in/yaml/v3`, the maintained successor of the archived `gopkg.in/yaml.v3`, vs `github.com/goccy/go-yaml`, which keeps positions/comments for "jump to line"). Only needed for *display/summary*; never fail on unknown c7n fields.
+- Syntax highlighting for YAML/JSON: `github.com/alecthomas/chroma/v2` (what Glamour uses) or a small hand-rolled highlighter; decide after a spike.
+- Subprocesses: stdlib `os/exec` + goroutines; each job's lines are sent into the program as messages (`Program.Send` or a `tea.Cmd` that reads a channel).
+- CLI flags: stdlib `flag` for now; move to a subcommand library only if headless subcommands are ever added.
+- Testing: stdlib `testing`; views are tested by calling `View()` and comparing the ANSI-stripped text (`github.com/charmbracelet/x/ansi`), golden files when screens stabilise; a fake `custodian` script for process tests.
+- Lint: `gofmt`, `go vet`, `golangci-lint` v2 with `exhaustive` enabled (`.golangci.yml`).
+- Releases: GoReleaser (§8 M5).
+
+Package layout:
 ```
-src/
-  main.rs            # arg parsing, terminal setup/teardown, panic hook that restores terminal
-  app.rs             # App state + update(Msg) -> Vec<Cmd>
-  msg.rs             # Msg / Cmd enums
-  ui/                # pure render fns: fn view(&App, &mut Frame); one module per screen
-  runner/            # trait Runner; binary.rs, docker.rs, command.rs, fake.rs
+cmd/lazyc7n/         # main: flags, config loading, tea.NewProgram(...).Run()
+internal/
+  app/               # Model (state), Update (pure), View; messages and commands; one file per screen as they grow
+  ui/                # theme (Lip Gloss styles, light/dark), shared components
+  config/            # config loading + validation
+  runner/            # Runner interface; binary.go, docker.go, command.go, fake.go
   c7n/
-    policy.rs        # lenient policy YAML model (name, resource, mode, filters, actions)
-    output.rs        # read metadata.json / resources.json / custodian-run.log
-    schema.rs        # `custodian schema --json` cache + lookup
-    safety.rs        # action classification + preflight summary
+    policy.go        # lenient policy YAML model (name, resource, mode, filters, actions)
+    output.go        # read metadata.json / resources.json / custodian-run.log
+    schema.go        # `custodian schema --json` cache + lookup
+    safety.go        # action classification + preflight summary
   store/             # runs dir management (run.json, retention)
-  config.rs
 ```
 
 Key design rules:
-- `update()` is pure (no I/O); side effects are `Cmd`s executed by the runtime. This makes the safety gate testable as a state machine.
-- Subprocesses: stream stdout/stderr line-by-line into `Msg::JobOutput`; support cancel (SIGINT first, then kill after timeout). Run in their own process group.
+- `Update()` is pure (no I/O); side effects are `tea.Cmd`s executed by the Bubble Tea runtime. This makes the safety gate testable as a state machine: feed messages into `Update()`, assert on the returned model and commands.
+- Subprocesses: stream stdout/stderr line-by-line as `jobOutputMsg` messages; support cancel (SIGINT first, then kill after timeout). Run in their own process group.
 - Parsing must be **lenient**: c7n versions/providers differ; unknown fields ignored, missing optional fields shown as `-`.
 - Large `resources.json` (100k+ items): load lazily/paged, never block the render loop.
 - Multi-cloud: v0.1 targets AWS shapes first, but nothing in the core may assume AWS (Azure/GCP resource ids differ). Resource-id extraction is a pluggable table.
 
 ## 8. Milestones
 
-- **M0 — Scaffold**: cargo project, CI (fmt, clippy, test), terminal setup/teardown w/ panic hook, empty screens, config loading.
+- **M0 — Scaffold**: Go module, CI (gofmt, go vet, golangci-lint, tests on 3 OSes), terminal setup/teardown (Bubble Tea restores the terminal on exit and panic), empty screens, config loading.
 - **M1 — Read-only browser**: policies tree + YAML view + action highlighting; Runs/Resources screens reading an existing `-s` output dir given on the CLI (`lazyc7n --output <dir>`). No process spawning yet. *(Already useful and zero-risk: first public release candidate.)*
 - **M2 — Validate & dry-run**: runner abstraction, job streaming, per-run state dir, run history, log viewer.
 - **M3 — Live run**: safety model §6 complete, preflight + typed confirmation, non-pull-mode handling.
 - **M4 — Schema browser & polish**: schema cache, fuzzy search, `$EDITOR` integration, theming, docker/command backends, prune command.
-- **M5 — Release**: `cargo-dist` (or equivalent) binaries for Linux/macOS/Windows, crates.io, Homebrew tap, AUR; demo GIF (vhs), docs site optional.
+- **M5 — Release**: GoReleaser binaries for Linux/macOS/Windows (amd64/arm64), `go install github.com/vstrofago/lazy-c7n/cmd/lazyc7n@latest`, Homebrew tap, AUR, Scoop/winget; demo GIF (vhs), docs site optional.
 
 Post-1.0 ideas (not committed): diff between two runs of the same policy, export to CSV/JSON, reading from S3 output (`s3://`), Azure/GCP polish, a `lazyc7n run` headless mode.
 
 ## 9. Open questions (decide during M0–M1)
-1. Binary name: `lazyc7n` (current choice) vs `lazy-c7n`. Repo name stays `lazy-c7n`. Check crates.io / GitHub / package-manager collisions before publishing.
-2. YAML crate choice (see §7) and whether to preserve comments/line numbers for "jump to line in `$EDITOR`".
+1. Binary name: `lazyc7n` (current choice) vs `lazy-c7n`. Repo name stays `lazy-c7n`. Check GitHub / Homebrew / AUR / package-manager collisions before publishing.
+2. YAML library choice (see §7) and whether to preserve comments/line numbers for "jump to line in `$EDITOR`".
 3. ~~Exact c7n flags/output file set~~ — resolved for 0.9.52 (§3, `tests/fixtures/real/c7n-0.9.52-moto/`). Re-run `tests/fixtures/tools/capture-real.sh` when bumping the supported c7n version.
 4. Policy discovery: only files passed/configured, or recursive `*.yml|*.yaml` under `policy_dirs` filtered by top-level `policies:` key? (Proposed: the latter.)
 5. Windows support level for v0.x (subprocess groups/signals differ).
 
 ## 10. Licensing, liability and positioning
 
-- **License**: dual `MIT OR Apache-2.0` (Rust ecosystem convention), both with their standard "AS IS / no warranty / no liability" clauses. Include both `LICENSE-MIT` and `LICENSE-APACHE` at release time (only MIT is committed in the scaffold; add Apache-2.0 text from the canonical source when scaffolding, do not retype it from memory).
+- **License**: dual `MIT OR Apache-2.0`, both with their standard "AS IS / no warranty / no liability" clauses. Include both `LICENSE-MIT` and `LICENSE-APACHE` at release time (only MIT is committed in the scaffold; add Apache-2.0 text from the canonical source when scaffolding, do not retype it from memory).
 - **README disclaimer (required wording, adapt as needed)**: lazy-c7n is an independent, community project. It is not affiliated with, endorsed by, or sponsored by the Cloud Custodian project or the CNCF. "Cloud Custodian" and "c7n" are used only to describe compatibility. You run policies with your own credentials at your own risk; live runs can modify or delete cloud resources; review the dry-run output first.
 - No telemetry, no network calls of its own (only those made by the `custodian`/`docker` process the user asks for). State this in the README; it is a selling point.
 - Contribution policy: DCO sign-off or plain PRs under the same license (decide at first external PR).
@@ -199,9 +204,9 @@ Post-1.0 ideas (not committed): diff between two runs of the same policy, export
 
 - **Unit**: safety classification, policy parsing (lenient), output parsing, run-store retention.
 - **State machine tests**: feed `Msg` sequences into `update()` and assert the live-run gate can't be bypassed (this is the most important test file in the repo).
-- **Snapshot tests**: render each screen with `TestBackend` + `insta`.
+- **Snapshot tests**: render each screen's `View()` at a fixed size, strip ANSI, compare with golden files.
 - **Process tests**: a fake `custodian` (shell/Python script on `PATH`) that emits scripted stdout/stderr/exit codes and writes fixture output dirs → exercises runner, streaming, cancellation without any cloud access.
 - **Fixtures**: real captured output in `tests/fixtures/real/` (see its README), plus synthetic output (large/edge cases) from a small deterministic generator in `tests/fixtures/tools/` (to be written, when needed).
 - **Local cloud emulator** for manual/dev testing without a cloud account: `moto` server (`pip install 'moto[server]'` in `.venv-emu`, no Docker needed) or Floci (`floci/floci` image, LocalStack-compatible, port 4566; needs Docker; not yet tried with c7n). Point c7n at it with `AWS_ENDPOINT_URL` + fake credentials and `AWS_CONFIG_FILE=/dev/null` (see `tests/fixtures/tools/capture-real.sh`). Emulators are never a CI dependency.
-- CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` on Linux/macOS/Windows.
+- CI: `gofmt -l`, `go mod tidy -diff`, `go vet`, `golangci-lint run`, `go test ./...` (with `-race` on Linux/macOS) on Linux/macOS/Windows.
 - Real-cloud tests are **never** part of CI; a manual checklist lives in `docs/manual-testing.md` (to be written).

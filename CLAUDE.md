@@ -4,29 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## State of the repo
 
-Pre-alpha, M0 scaffold in place (config loading, empty screens, pure `App::update`). The source of truth is `docs/SPEC.md`; the next steps are in `docs/HANDOFF.md`. Read both before doing anything.
+Pre-alpha, M0 scaffold in place (Go + Bubble Tea: config loading, empty screens, pure `Update`). The source of truth is `docs/SPEC.md`; the next steps are in `docs/HANDOFF.md`. Read both before doing anything.
 
 ## What this is
 
-`lazy-c7n` is a Rust/[ratatui](https://ratatui.rs/) TUI that wraps the Cloud Custodian (`custodian`) CLI: browse policies, validate, dry-run, run, inspect runs/logs.
+`lazy-c7n` is a Go TUI built on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) + Lip Gloss + Bubbles that wraps the Cloud Custodian (`custodian`) CLI: browse policies, validate, dry-run, run, inspect runs/logs.
 
 ## Non-negotiables
 
 - Never reimplement c7n logic; always shell out to `custodian` (or its docker/command backend).
-- Dry-run is the default. The live-run confirmation gate (SPEC §6) must not be bypassable; any change touching it needs a state-machine test in `update()`.
+- Dry-run is the default. The live-run confirmation gate (SPEC §6) must not be bypassable; any change touching it needs a state-machine test that drives `Update()` with messages.
 - Never store, log or render credentials/secrets.
 - Keep the README disclaimer (independent project, no affiliation with Cloud Custodian/CNCF, no warranty).
 - Parsing of c7n policy/output must be lenient (ignore unknown fields).
 - Items tagged **[verify]** in the spec were written from memory: confirm against a real `custodian` install before depending on them, then update the spec.
-- Toolchain/versions: don't guess crate versions; use `cargo add`.
+- Toolchain/versions: don't guess dependency versions; use `go get <module>@latest` (Charm v2 modules live under `charm.land/...`). Check real APIs in the module cache (`$(go env GOMODCACHE)`), Bubble Tea v2 differs a lot from v1.
+- Every `switch` over an enum-like type must list all values (the `exhaustive` linter enforces it); don't add `default:` to dodge it.
+- The user is the PM and final tester, not a Go developer: keep code plain and idiomatic and avoid clever abstractions.
 
 ## Commands
 
-Rust lives in `~/.cargo/bin` (rustup); if `cargo` is not found, `export PATH="$HOME/.cargo/bin:$PATH"`.
+Go 1.26+ (installed via mise).
 
-- Build / run: `cargo build`, `cargo run -- [--config <file>]`
-- Tests: `cargo test`; single test: `cargo test <name_substring>` (e.g. `cargo test config::tests::explicit_file_is_loaded`)
-- Lint (same as CI): `cargo fmt --all --check` and `cargo clippy --all-targets -- -D warnings`
+- Build / run: `go build ./cmd/lazyc7n`, `go run ./cmd/lazyc7n [-config <file>]`
+- Tests: `go test ./...` (CI adds `-race`); single test: `go test ./internal/config -run TestInvalidSafetyValueFailsClosed`
+- Lint (same as CI): `gofmt -l .` (must print nothing), `go mod tidy -diff`, `go vet ./...`, `mise x golangci-lint@2.14.0 -- golangci-lint run ./...`
+- Look at the real UI without a terminal: `tmux -L t new -d -s t -x 90 -y 14 ./lazyc7n; tmux -L t capture-pane -p -t t` (send keys with `tmux -L t send-keys -t t Tab`)
 
 c7n and the local AWS emulator (never a real account for dev work):
 

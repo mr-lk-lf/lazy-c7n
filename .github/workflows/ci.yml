@@ -5,28 +5,22 @@ on:
     branches: [main]
   pull_request:
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  fmt:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v7
         with:
-          components: rustfmt
-      - run: cargo fmt --all --check
-
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: go mod tidy
+        run: go mod tidy -diff
+      - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v9
         with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets --locked -- -D warnings
+          version: v2.14.0
 
   test:
     strategy:
@@ -36,6 +30,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --locked
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: test (race)
+        if: runner.os != 'Windows'
+        run: go test -race ./...
+      - name: test
+        if: runner.os == 'Windows'
+        run: go test ./...
+      - run: go build ./cmd/lazyc7n

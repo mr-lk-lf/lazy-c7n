@@ -1,0 +1,18 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    # Every switch over an enum-like type (screens, gate states, runner kinds...)
+    # must list all values: our stand-in for Rust's exhaustive match.
+    - exhaustive
+    - errorlint
+    - misspell
+    - unconvert
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: false
+
+formatters:
+  enable:
+    - gofmt

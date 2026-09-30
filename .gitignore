@@ -1,7 +1,9 @@
-/target
-**/*.rs.bk
+# build output
+/lazyc7n
+/lazyc7n.exe
+/dist/
 .env
 .venv/
+.venv-emu/
 # real c7n output captured locally may contain account data; commit only scrubbed fixtures
 /tests/fixtures/real-unscrubbed/
-.venv-emu/

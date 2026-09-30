@@ -20,13 +20,16 @@ For the user (Spanish, with an opening prompt to paste): `docs/NEXT-STEPS.txt`.
 - On the PM's machine the user is not in the `docker` group (fix: `sudo usermod -aG docker $USER` + re-login). Docker, Floci and the docker backend were verified on 2026-09-30 from a Claude Code cloud container (start `dockerd` as a background task there).
 
 ## Done
-- **M0 complete (steps 1–5).**
-  - All c7n **[verify]** items resolved against 0.9.52 (SPEC §3, §6.5), including the docker backend (SPEC §3 "Invocation backends": run with `--user <uid>:<gid>`, mount outside `/home/custodian`, always pass `-f`). Real captures against moto **and Floci** in `tests/fixtures/real/c7n-0.9.52-{moto,floci}/`, reproducible with `tests/fixtures/tools/capture-real.sh`.
-  - Key c7n findings: `execution.end_time` (not `end`); multi-region output is `<out>/<region>/<policy>/`; `resources.json` absent on error and on live runs of non-pull modes; `action-<name>` files optional; `run` exits 2 on any policy error; logs only on stderr; c7n's resource cache (`-f`, 15 min) is shared between dry-run and live; `--dryrun` is safe for every mode, a live non-pull run provisions Lambda + its EventBridge rule (seen completely on Floci).
-  - Go scaffold: `cmd/lazyc7n`, `internal/{app,config,ui,c7n}`; config (user + `.lazyc7n.toml`, invalid safety values fail closed), five empty screens with tabs, DRY/LIVE badge, key help, light/dark theme; tests for config, `Update` and `View`; CI (gofmt, tidy, vet, golangci-lint with `exhaustive`, tests on 3 OSes).
-  - **Live-run gate** (step 4, SPEC §6.4–6.5): `internal/app/gate.go` + `gate_test.go` (table of bypass attempts, random key mashing, frozen request, config weakening). Mutation-checked: accepting a prefix, skipping DEPLOY or ignoring case each make tests fail. Action classification in `internal/c7n/safety.go`. PM decisions (2026-09-30): type the name (1 policy) or the count (several); `yes-no` rejected at startup in v0; non-pull policies need a second step typing `DEPLOY`.
-  - `startLiveRun` in `internal/app/app.go` is the only place a live run starts; today it only reports back (the runner arrives in M2/M3). `Model.selected` stays empty until M1, so in the real app `R` says "select a policy first".
+- **M0** (2026-09-30): c7n 0.9.52 verified against moto and Floci (SPEC §3, §6.5, fixtures in `tests/fixtures/real/`), docker backend verified, Go scaffold + CI, live-run gate with PM decisions (type the name / the count; no `yes-no` in v0; `DEPLOY` step for non-pull modes).
+- **M1** read-only browser: policy discovery + lenient YAML parsing with line numbers (`go.yaml.in/yaml/v3`), Policies tree/filter/selection/highlighted YAML, Runs/Resources from `-output <dir>`.
+- **M2** runner (binary/command/docker argv, process group, streaming, cancel), run store (`run.json`, retention), `v` validate, `d` dry-run, Jobs screen, run history, custodian version in the header.
+- **M3** live runs: the gate freezes the exact spec; `startLiveRun` (only called on approval) starts it. `c7n.Select` refuses selections where custodian's `-p` globs would run more than what was chosen.
+- **M4** Schema browser (cached `schema --json`, help per action/filter), `e` → `$EDITOR` at the line, `-prune`, `theme`.
+- Everything checked end-to-end against Floci from the TUI (binary and docker backends): dry-runs, a live `mark-for-op` (tags appear), a live `periodic` policy (Lambda + EventBridge deployed, status `deployed`).
+- Work is on branch `tui-m0-m4` (pushed, not merged to `main`).
+- Tests: `go test -race ./...` green; lint clean; cross-builds for Windows/macOS. Gate mutation-checked (see commit messages).
 
 ## Next
-1. **M1 — read-only browser**: policy discovery (SPEC §9.4), YAML library choice (§9.2), Policies tree + YAML view + action highlighting (reuse `c7n.ClassifyAction`), filling `Model.selected` (with `c7n.Policy`); Runs/Resources screens reading an existing `-s` dir (`lazyc7n -output <dir>`), using the real fixtures. First release candidate.
-2. Write `docs/manual-testing.md` (the PM's test checklist against moto/Floci), including walking through the live-run gate once M1 can select policies.
+1. PM: run `docs/manual-testing.md` against Floci (`scripts/floci-dev.sh`), then decide whether to merge `tui-m0-m4` into `main`.
+2. Things noticed but not done: overriding action classes from the config (SPEC §6.3); showing profile/region from the environment in the status bar (SPEC §4); a pager for huge `resources.json` (today it is read whole); Windows cancel is a hard kill; key remapping.
+3. **M5 — release** (not started, on hold by PM request): name collision check (SPEC §9.1), GoReleaser, `go install`, Homebrew/AUR/Scoop, demo GIF with vhs, make the repo public.

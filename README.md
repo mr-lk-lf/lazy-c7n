@@ -2,7 +2,29 @@
 
 A terminal UI for the [Cloud Custodian](https://cloudcustodian.io/) CLI, in the spirit of `lazygit` and `lazydocker`: browse your policies, validate them, dry-run them, run them, and read the results and logs, without memorising flags.
 
-> **Status: pre-alpha — scaffold only (M0).** Nothing useful to run yet. See [`docs/SPEC.md`](docs/SPEC.md).
+> **Status: pre-alpha, not released.** Browsing, validate, dry-run, live runs (behind a typed confirmation), run history and the schema browser work; tested against local AWS emulators only. See [`docs/SPEC.md`](docs/SPEC.md).
+
+## Try it (no cloud account needed)
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install c7n                 # custodian
+python3 -m venv .venv-emu && .venv-emu/bin/pip install 'moto[server]' # boto3 for seeding
+scripts/floci-dev.sh            # starts Floci (Docker), seeds it, opens lazyc7n on examples/policies
+scripts/floci-dev.sh --docker   # same, running custodian in the cloudcustodian/c7n image
+```
+
+## Usage
+
+```sh
+go build ./cmd/lazyc7n
+./lazyc7n [policy files or dirs...]      # default: policy_dirs from the config (./policies)
+./lazyc7n -output path/to/custodian-out  # also browse an existing `custodian run -s` dir (repeatable)
+./lazyc7n -prune                         # trim the run history and exit
+```
+
+Screens: `1` Policies · `2` Runs · `3` Resources · `4` Schema · `5` Jobs. On Policies: `space` select, `v` validate, `d` dry-run, `R` live run, `e` edit, `/` filter. `?` shows every key.
+
+Configuration: `$XDG_CONFIG_HOME/lazyc7n/config.toml`, overridden by `./.lazyc7n.toml` (see [`docs/SPEC.md` §5](docs/SPEC.md)).
 
 ## Principles
 

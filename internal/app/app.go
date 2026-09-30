@@ -406,7 +406,7 @@ func (m *Model) openLiveGate() {
 func (m Model) startLiveRun(req LiveRunRequest) (tea.Model, tea.Cmd) {
 	spec := req.Spec
 	spec.DryRun = false
-	m, cmd := m.addJob("live", describePolicies(spec.Policies), spec)
+	m, cmd := m.addJob("live", describeSelection(c7n.Selection{Files: spec.Files, Names: spec.Policies}), spec)
 	m.jobs.list[len(m.jobs.list)-1].req = &req
 	return m, cmd
 }

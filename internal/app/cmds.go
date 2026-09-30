@@ -34,6 +34,7 @@ type runEntry struct {
 	LogPath  string   // custodian's stderr, for runs lazyc7n started
 	Argv     []string // command line, for runs lazyc7n started
 	Backend  string
+	Label    string // short name: the policy, or file and count
 	Finished bool
 	ExitCode int
 	Policies []c7n.PolicyRun
@@ -80,6 +81,12 @@ func loadRuns(st store.Store, outputDirs []string) tea.Cmd {
 				LogPath: r.StderrPath(), Argv: r.Argv, Backend: r.Backend,
 				Finished: r.Finished, ExitCode: r.ExitCode, Err: r.Error,
 			}
+			switch {
+			case len(r.Policies) > 0:
+				e.Label = describeSelection(c7n.Selection{Files: r.Files, Names: r.Policies})
+			case len(r.Files) > 0:
+				e.Label = strings.Join(shortPaths(r.Files), " ")
+			}
 			if r.Kind != "validate" {
 				e.OutDir = r.OutDir()
 				e.Policies, _ = c7n.ReadOutputDir(e.OutDir) // none yet while starting
@@ -87,7 +94,7 @@ func loadRuns(st store.Store, outputDirs []string) tea.Cmd {
 			runs = append(runs, e)
 		}
 		for _, dir := range outputDirs {
-			e := runEntry{ID: dir, Kind: "dir", OutDir: dir, Finished: true}
+			e := runEntry{ID: dir, Kind: "dir", OutDir: dir, Finished: true, Label: lastElems(dir, 2)}
 			pols, err := c7n.ReadOutputDir(dir)
 			if err != nil {
 				errs = append(errs, dir+": "+err.Error())

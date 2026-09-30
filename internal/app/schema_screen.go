@@ -97,7 +97,9 @@ func loadSchemaHelp(argvFor func(runner.Spec) ([]string, error), path string) te
 		if err != nil {
 			return schemaHelpMsg{path: path, text: "could not load help: " + err.Error()}
 		}
-		return schemaHelpMsg{path: path, text: strings.TrimSpace(string(out))}
+		text := strings.TrimSpace(string(out))
+		text = strings.TrimSpace(strings.TrimPrefix(text, "Help\n----"))
+		return schemaHelpMsg{path: path, text: text}
 	}
 }
 

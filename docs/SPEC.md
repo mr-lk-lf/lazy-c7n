@@ -61,6 +61,7 @@ lazy-c7n shells out; it never links c7n code.
    - `metadata.json` then records container paths (`config.output_dir = /lazyc7n/run/out`); lazy-c7n must map them back, never open them as host paths.
    - Credentials: env passthrough (`-e AWS_...` / `--env-file`) as in the official quickstart; mounting `~/.aws` needs the same uid care. Verified with env vars only.
    - Dev against an emulator on the host (Linux): `--add-host=host.docker.internal:host-gateway -e AWS_ENDPOINT_URL=http://host.docker.internal:4566`.
+   - Env passthrough is by prefix (`AWS_`, `AZURE_`, `GOOGLE_`, `CLOUDSDK_`, `ARM_`, `OCI_`, `TENCENTCLOUD_`, `OS_`, `KUBECONFIG`). Variables that hold host file paths (`AWS_CONFIG_FILE`, `AWS_CA_BUNDLE`, `GOOGLE_APPLICATION_CREDENTIALS`, …) are passed too but point to files that do not exist in the container unless mounted with `docker_args`.
    - Proven command: `docker run --rm --user $(id -u):$(id -g) -e AWS_... -v <policydir>:/lazyc7n/policies:ro -v <rundir>:/lazyc7n/run cloudcustodian/c7n run [--dryrun] -f /lazyc7n/run/c7n.cache -s /lazyc7n/run/out -p <policy> /lazyc7n/policies/<file>` (dry-run and live, exit 0, same output layout as the binary backend).
    - Windows/macOS Docker Desktop uid mapping is not verified.
 3. `command`: arbitrary prefix (e.g. `uvx --from c7n custodian`, `aws-vault exec prod --`).
@@ -98,7 +99,9 @@ Layout: lazygit-style panes. Left column = lists, right = detail/preview, bottom
 | **Schema** | resource types → filters/actions | help text and JSON schema from `custodian schema` |
 | **Jobs** | running/queued jobs | live streaming stdout/stderr |
 
-Global keys (vim-ish + arrows; all remappable later): `j/k` move, `h/l` or `Tab` switch pane, `/` filter, `Enter` open, `Esc` back, `v` validate, `d` dry-run, `R` run (live, gated), `e` open in `$EDITOR`, `y` copy command line, `?` help, `q` quit.
+Keys as implemented (M1–M4): `Tab`/`Shift+Tab` or `1`–`5` switch screen; `h`/`l` (or arrows) switch pane; `j`/`k`, `g`/`G`, `PgUp`/`PgDn` move or scroll; `Enter` open; `Esc` back (clears the filter first, then the selection on Policies); `/` fuzzy filter of the left list; `?` all keys; `q` quit (asks again while jobs run; `Ctrl+C` always quits, interrupting running jobs).
+Policies: `Space` select (on a file row: all its policies), `v` validate, `d` dry-run, `R` live run (gated, Policies screen only), `e` open in `$EDITOR` at the policy's line, `y` copy the dry-run command, `r` reload. Actions apply to the selected policies, or else to the policy (or file) under the cursor.
+Runs: `Enter` policy table → resources, `t` toggle the per-policy log, `y` copy the command, `r` reload. Resources: `y` copy the resource id. Jobs: `x` cancel (interrupt, kill after 5 s). Schema: `Enter` browse / load help, `r` re-run `custodian schema --json`.
 
 ## 5. Data model and state
 
@@ -106,11 +109,17 @@ No database. Plain files only.
 
 - **Config** (`$XDG_CONFIG_HOME/lazyc7n/config.toml`, project-local `.lazyc7n.toml` overrides):
   ```toml
-  policy_dirs = ["./policies"]
+  policy_dirs = ["./policies"]  # replaced by policy paths given as arguments
+  state_dir = ""             # empty = $XDG_STATE_HOME/lazyc7n
+  keep_runs = 200            # run history retention (0 = keep all)
+  theme = "auto"             # auto | dark | light
   [runner]
   kind = "binary"            # binary | docker | command
   custodian = "custodian"    # or path / venv
-  # command = ["uvx", "--from", "c7n", "custodian"]
+  # command = ["uvx", "--from", "c7n", "custodian"]   # required for kind = "command"
+  docker = "docker"          # or podman
+  image = "cloudcustodian/c7n"
+  docker_args = []           # e.g. ["--network", "host"] to reach an emulator on the host
   [defaults]
   region = ""                # empty = let custodian decide
   cache_period = ""          # passthrough, optional
@@ -126,7 +135,8 @@ No database. Plain files only.
     stdout.log stderr.log  # raw captured streams
   schema-cache/<c7n-version>.json
   ```
-- Retention: keep last N runs (default 200) and/or max age; manual prune command.
+- Retention: after each run the oldest finished runs beyond `keep_runs` are deleted; `lazyc7n -prune [-prune-days N]` does it by hand (and by age). Unfinished runs are never deleted.
+- The c7n resource cache is `<state>/c7n.cache` (always passed as `-f`).
 - In-memory model: Elm-style architecture (see §7): `App { screen, policies, runs, jobs, config, ... }`; all I/O is performed by tasks that send `Msg`s back.
 
 ## 6. Safety model (first-class feature)
@@ -195,15 +205,16 @@ Key design rules:
 - **M2 — Validate & dry-run**: runner abstraction, job streaming, per-run state dir, run history, log viewer.
 - **M3 — Live run**: safety model §6 complete, preflight + typed confirmation, non-pull-mode handling.
 - **M4 — Schema browser & polish**: schema cache, fuzzy search, `$EDITOR` integration, theming, docker/command backends, prune command.
+- Status (2026-09-30): **M0–M4 implemented** on branch `tui-m0-m4`, tested end-to-end against Floci with the binary and docker backends. Not released.
 - **M5 — Release**: GoReleaser binaries for Linux/macOS/Windows (amd64/arm64), `go install github.com/vstrofago/lazy-c7n/cmd/lazyc7n@latest`, Homebrew tap, AUR, Scoop/winget; demo GIF (vhs), docs site optional.
 
 Post-1.0 ideas (not committed): diff between two runs of the same policy, export to CSV/JSON, reading from S3 output (`s3://`), Azure/GCP polish, a `lazyc7n run` headless mode.
 
 ## 9. Open questions (decide during M0–M1)
 1. Binary name: `lazyc7n` (current choice) vs `lazy-c7n`. Repo name stays `lazy-c7n`. Check GitHub / Homebrew / AUR / package-manager collisions before publishing.
-2. YAML library choice (see §7) and whether to preserve comments/line numbers for "jump to line in `$EDITOR`".
+2. ~~YAML library~~ — decided (M1): `go.yaml.in/yaml/v3`, parsed as `yaml.Node` so every policy keeps its line (used by `e`, the YAML view and the gate). Highlighting is a small hand-rolled line highlighter (no chroma).
 3. ~~Exact c7n flags/output file set~~ — resolved for 0.9.52 (§3, `tests/fixtures/real/c7n-0.9.52-moto/`). Re-run `tests/fixtures/tools/capture-real.sh` when bumping the supported c7n version.
-4. Policy discovery: only files passed/configured, or recursive `*.yml|*.yaml` under `policy_dirs` filtered by top-level `policies:` key? (Proposed: the latter.)
+4. ~~Policy discovery~~ — decided (M1): recursive `*.yml|*.yaml` under each path of `policy_dirs` (or the paths given as arguments; a path may be a file), keeping files with a top-level `policies:` key; hidden dirs and `node_modules` skipped; broken files that look like policy files are listed with their error.
 5. Windows support level for v0.x (subprocess groups/signals differ).
 
 ## 10. Licensing, liability and positioning

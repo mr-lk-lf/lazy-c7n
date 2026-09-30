@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## State of the repo
 
-Pre-alpha, M0 scaffold in place (Go + Bubble Tea: config loading, empty screens, pure `Update`). The source of truth is `docs/SPEC.md`; the next steps are in `docs/HANDOFF.md`. Read both before doing anything.
+Pre-alpha, M0–M4 implemented (browse, validate, dry-run, gated live runs, run history, schema browser; binary/command/docker backends), not released. The source of truth is `docs/SPEC.md`; the next steps are in `docs/HANDOFF.md`. Read both before doing anything.
+
+Layout: `cmd/lazyc7n` (flags), `internal/app` (Bubble Tea model, one file per screen; `gate.go` is the live-run gate), `internal/c7n` (policy/output/schema parsing, action safety classes, `Select`), `internal/runner` (argv per backend, process streaming/cancel), `internal/store` (run history), `internal/config`, `internal/ui` (theme).
 
 ## What this is
 
@@ -29,6 +31,8 @@ Go 1.26+ (installed via mise).
 - Build / run: `go build ./cmd/lazyc7n`, `go run ./cmd/lazyc7n [-config <file>]`
 - Tests: `go test ./...` (CI adds `-race`); single test: `go test ./internal/config -run TestInvalidSafetyValueFailsClosed`
 - Lint (same as CI): `gofmt -l .` (must print nothing), `go mod tidy -diff`, `go vet ./...`, `mise x golangci-lint@2.14.0 -- golangci-lint run ./...`
+- Try it against Floci: `scripts/floci-dev.sh [--docker] [--reset]`; manual checklist in `docs/manual-testing.md`.
+- App tests use the test binary as a fake `custodian` (`TestFakeCustodian` in `internal/app/jobs_test.go`); gate tests never execute commands.
 - Look at the real UI without a terminal: `tmux -L t new -d -s t -x 90 -y 14 ./lazyc7n; tmux -L t capture-pane -p -t t` (send keys with `tmux -L t send-keys -t t Tab`)
 
 c7n and the local AWS emulator (never a real account for dev work):

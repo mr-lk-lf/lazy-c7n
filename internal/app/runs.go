@@ -242,12 +242,10 @@ func (m Model) runRowText(r runEntry) string {
 		status = s.Danger.Render("✗")
 	}
 	summary := fmt.Sprintf("%d pol · %d res", len(r.Policies), r.matched())
-	switch r.Kind {
-	case "validate":
+	if r.Kind == "validate" {
 		summary = ""
-	case "dir":
-		summary += " " + s.Muted.Render(lastElems(r.OutDir, 2))
 	}
+	summary += " " + s.Muted.Render(r.Label)
 	return fmt.Sprintf("%s %s %s %s", s.Muted.Render(when), m.kindBadge(r.Kind), status, summary)
 }
 

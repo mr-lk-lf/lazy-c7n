@@ -3,53 +3,37 @@ lazy-c7n — próximos pasos (actualizado 2026-09-30)
 
 CÓMO RETOMAR
 ------------
-1. cd ~/Documents/harder-better-faster-stronger/10-Projects/lazy-c7n && claude
-2. Pega este prompt de apertura:
+1. cd ~/Documents/harder-better-faster-stronger/10-Projects/lazy-c7n
+   git fetch && git checkout tui-m0-m4
+2. claude, y pega:
 
    Lee CLAUDE.md, docs/SPEC.md, docs/HANDOFF.md y docs/NEXT-STEPS.txt.
-   Seguimos con el paso 1 de NEXT-STEPS (M1, navegador de solo lectura).
+   He probado docs/manual-testing.md; estos son mis resultados: <...>
 
 DÓNDE ESTAMOS
 -------------
-- Stack: Go + Bubble Tea v2 / Lip Gloss v2 / Bubbles v2 (motivo en SPEC §7).
-- M0 TERMINADO:
-  - config, 5 pestañas vacías, badge DRY/LIVE, ayuda de teclas, tema
-    claro/oscuro, tests y CI.
-  - Confirmación de runs live (SPEC §6), con tus decisiones:
-      * 1 policy: escribir su nombre. Varias: escribir cuántas son (p. ej. 3).
-      * "yes-no" no existe en v0: si la config lo pide, la app no arranca.
-      * Policies no-pull (periodic, cloudtrail...): segundo paso, escribir
-        DEPLOY.
-    Hay tests que intentan saltársela de mil maneras (nombre mal, Esc,
-    R dos veces, pegar texto, cambiar la selección por detrás, config
-    debilitada, teclas al azar). Todavía no se puede ver en la app real:
-    hace falta poder seleccionar policies (M1).
-  - Docker y Floci probados: funcionan. El backend docker necesita
-    --user <tu uid>, montar fuera de /home/custodian y pasar -f (SPEC §3).
-    Floci además despliega de verdad la Lambda + regla de eventos en un
-    run live de una policy periodic.
-- Repo privado: https://github.com/vstrofago/lazy-c7n
+- M0, M1, M2, M3 y M4 hechos (rama tui-m0-m4, sin publicar):
+  * Policies: árbol, filtro /, selección con espacio, YAML coloreado,
+    acciones peligrosas en rojo, e para abrir en tu editor.
+  * v valida, d hace dry-run, R hace run live con la confirmación que
+    decidiste (nombre / número de policies / DEPLOY).
+  * Jobs: log en directo, x para cancelar.
+  * Runs: historial de runs con su log y sus recursos (Resources).
+  * Schema: todas las acciones y filtros de c7n con su ayuda.
+  * Backends binary, command y docker.
+- Todo probado contra Floci (sin cuenta cloud), también con docker.
 
 PRÓXIMOS PASOS
 --------------
-1. M1: navegador de solo lectura (primer candidato a release).
-   - Encontrar policies en disco (SPEC §9.4: propuesta = buscar *.yml/*.yaml
-     con clave "policies:" dentro de policy_dirs).
-   - Elegir librería YAML (SPEC §9.2).
-   - Pantalla Policies: árbol de carpetas/ficheros/policies, vista YAML,
-     acciones peligrosas resaltadas, seleccionar policies (y así probar la
-     confirmación live con R).
-   - Pantallas Runs y Resources leyendo una carpeta de salida de c7n
-     existente (lazyc7n -output <dir>), probadas con los fixtures reales.
+1. TÚ: seguir docs/manual-testing.md (20 min) con
+     scripts/floci-dev.sh --reset
+   y contarme qué falla o qué cambiarías.
+2. Decidir si fusionamos la rama tui-m0-m4 en main.
+3. Pendiente menor (ver HANDOFF): reclasificar acciones desde la config,
+   mostrar perfil/región en la barra, resources.json enormes.
+4. M5 (publicar): en pausa hasta que lo pidas.
 
-2. docs/manual-testing.md: tu checklist de pruebas como tester, contra moto
-   o Floci.
-
-PENDIENTE DE TU LADO (opcional)
--------------------------------
-- Para usar Floci y el backend Docker en tu máquina:
-    sudo usermod -aG docker $USER   (y volver a iniciar sesión)
-    docker run -d --name floci -p 4566:4566 floci/floci:latest
-- Antes de publicar: comprobar que el nombre "lazyc7n" no choca en
-  GitHub/Homebrew/AUR (SPEC §9.1) y hacer el repo público:
-    gh repo edit vstrofago/lazy-c7n --visibility public --accept-visibility-change-consequences
+PENDIENTE DE TU LADO
+--------------------
+- Docker en tu máquina:  sudo usermod -aG docker $USER  (y volver a entrar)
+- Antes de publicar: comprobar el nombre "lazyc7n" (SPEC §9.1).

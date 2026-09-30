@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -145,7 +146,7 @@ func (m Model) startDryRun() (tea.Model, tea.Cmd) {
 		m.setError(err.Error())
 		return m, nil
 	}
-	return m.addJob("dry-run", describePolicies(sel.Names), m.runSpec(sel, true))
+	return m.addJob("dry-run", describeSelection(sel), m.runSpec(sel, true))
 }
 
 // startValidate validates the files of the selection.
@@ -188,11 +189,16 @@ func (m Model) cfgRunnerArgv() func(runner.Spec) ([]string, error) {
 	return func(s runner.Spec) ([]string, error) { return runner.Argv(cfg, s, host) }
 }
 
-func describePolicies(names []string) string {
-	if len(names) == 1 {
-		return names[0]
+// describeSelection names a run in lists: the policy, or the file and
+// how many policies.
+func describeSelection(sel c7n.Selection) string {
+	switch {
+	case len(sel.Names) == 1:
+		return sel.Names[0]
+	case len(sel.Files) == 1:
+		return fmt.Sprintf("%s · %d policies", filepath.Base(sel.Files[0]), len(sel.Names))
 	}
-	return fmt.Sprintf("%d policies", len(names))
+	return fmt.Sprintf("%d policies in %d files", len(sel.Names), len(sel.Files))
 }
 
 func shortPaths(paths []string) []string {

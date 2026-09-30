@@ -228,7 +228,8 @@ func (m Model) rightInner() int {
 // wrapped breaks text into lines of at most width cells, each styled.
 func wrapped(style lipgloss.Style, text string, width int) []string {
 	var out []string
-	for _, l := range strings.Split(ansi.Hardwrap(text, max(width, 10), true), "\n") {
+	// Break at spaces (and dashes) when possible, mid-word only when needed.
+	for _, l := range strings.Split(ansi.Wrap(text, max(width, 10), "-"), "\n") {
 		out = append(out, style.Render(l))
 	}
 	return out

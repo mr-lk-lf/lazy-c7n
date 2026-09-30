@@ -1,0 +1,1 @@
+2026-09-30 22:15:12,973 - custodian.policy - INFO - policy:ec2-mark-stop resource:aws.ec2 region:us-east-1 count:2 time:0.00

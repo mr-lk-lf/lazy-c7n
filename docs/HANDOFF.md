@@ -17,15 +17,16 @@ For the user (Spanish, with an opening prompt to paste): `docs/NEXT-STEPS.txt`.
 
 ## Environment
 - Go 1.27.1 (mise). `custodian` 0.9.52 in `.venv/`, moto 5.2.3 in `.venv-emu/` (both git-ignored; recreate per `CLAUDE.md`).
-- Docker daemon runs but the user is not in the `docker` group, so Floci and the docker backend are untested. Fix: `sudo usermod -aG docker $USER` + re-login.
+- On the PM's machine the user is not in the `docker` group (fix: `sudo usermod -aG docker $USER` + re-login). Docker, Floci and the docker backend were verified on 2026-09-30 from a Claude Code cloud container (start `dockerd` as a background task there).
 
 ## Done
-- **M0 steps 1–3, 5.**
-  - c7n **[verify]** items resolved against 0.9.52 + moto (SPEC §3, §6.5); only the docker backend image/paths remain. Real captures in `tests/fixtures/real/c7n-0.9.52-moto/`, reproducible with `tests/fixtures/tools/capture-real.sh`.
-  - Key c7n findings: `execution.end_time` (not `end`); multi-region output is `<out>/<region>/<policy>/`; `resources.json` absent on error and on live runs of non-pull modes; `action-<name>` files optional; `run` exits 2 on any policy error; logs only on stderr; c7n's resource cache (`-f`, 15 min) is shared between dry-run and live; `--dryrun` is safe for every mode, a live non-pull run provisions Lambda.
-  - Go scaffold: `cmd/lazyc7n`, `internal/{app,config,ui}`; config (user + `.lazyc7n.toml`, invalid safety values fail closed), five empty screens with tabs, DRY/LIVE badge, key help, light/dark theme; tests for config, `Update` and `View`; CI (gofmt, tidy, vet, golangci-lint with `exhaustive`, tests on 3 OSes).
+- **M0 complete (steps 1–5).**
+  - All c7n **[verify]** items resolved against 0.9.52 (SPEC §3, §6.5), including the docker backend (SPEC §3 "Invocation backends": run with `--user <uid>:<gid>`, mount outside `/home/custodian`, always pass `-f`). Real captures against moto **and Floci** in `tests/fixtures/real/c7n-0.9.52-{moto,floci}/`, reproducible with `tests/fixtures/tools/capture-real.sh`.
+  - Key c7n findings: `execution.end_time` (not `end`); multi-region output is `<out>/<region>/<policy>/`; `resources.json` absent on error and on live runs of non-pull modes; `action-<name>` files optional; `run` exits 2 on any policy error; logs only on stderr; c7n's resource cache (`-f`, 15 min) is shared between dry-run and live; `--dryrun` is safe for every mode, a live non-pull run provisions Lambda + its EventBridge rule (seen completely on Floci).
+  - Go scaffold: `cmd/lazyc7n`, `internal/{app,config,ui,c7n}`; config (user + `.lazyc7n.toml`, invalid safety values fail closed), five empty screens with tabs, DRY/LIVE badge, key help, light/dark theme; tests for config, `Update` and `View`; CI (gofmt, tidy, vet, golangci-lint with `exhaustive`, tests on 3 OSes).
+  - **Live-run gate** (step 4, SPEC §6.4–6.5): `internal/app/gate.go` + `gate_test.go` (table of bypass attempts, random key mashing, frozen request, config weakening). Mutation-checked: accepting a prefix, skipping DEPLOY or ignoring case each make tests fail. Action classification in `internal/c7n/safety.go`. PM decisions (2026-09-30): type the name (1 policy) or the count (several); `yes-no` rejected at startup in v0; non-pull policies need a second step typing `DEPLOY`.
+  - `startLiveRun` in `internal/app/app.go` is the only place a live run starts; today it only reports back (the runner arrives in M2/M3). `Model.selected` stays empty until M1, so in the real app `R` says "select a policy first".
 
 ## Next
-1. **M0 step 4: the live-run gate state machine** (SPEC §6) in `internal/app`, with table-driven tests that try to bypass it (wrong name, Esc, focus changes, a second `R`, config weakening). Needs PM input on the UX: exact wording, whether `yes-no` mode is allowed at all in v0, how non-pull "deploys infrastructure" confirmation looks.
-2. **M1 — read-only browser**: policy discovery (SPEC §9.4), YAML library choice (§9.2), Policies tree + YAML view + action highlighting, Runs/Resources screens reading an existing `-s` dir (`lazyc7n -output <dir>`), using the real fixtures. First release candidate.
-3. Write `docs/manual-testing.md` (the PM's test checklist against moto/Floci).
+1. **M1 — read-only browser**: policy discovery (SPEC §9.4), YAML library choice (§9.2), Policies tree + YAML view + action highlighting (reuse `c7n.ClassifyAction`), filling `Model.selected` (with `c7n.Policy`); Runs/Resources screens reading an existing `-s` dir (`lazyc7n -output <dir>`), using the real fixtures. First release candidate.
+2. Write `docs/manual-testing.md` (the PM's test checklist against moto/Floci), including walking through the live-run gate once M1 can select policies.

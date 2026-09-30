@@ -1,0 +1,230 @@
+[
+  {
+    "Architecture": "x86_64",
+    "BlockDeviceMappings": [
+      {
+        "DeviceName": "/dev/xvda",
+        "Ebs": {
+          "AttachTime": "2026-09-30T22:15:09.366000+00:00",
+          "DeleteOnTermination": true,
+          "Status": "attached",
+          "VolumeId": "vol-4f516005f12c91d59"
+        }
+      }
+    ],
+    "ClientToken": "e1d9ec49-28d7-4e09-9fef-5064e598a435",
+    "EbsOptimized": false,
+    "EnaSupport": true,
+    "Hypervisor": "xen",
+    "NetworkInterfaces": [
+      {
+        "Attachment": {
+          "AttachTime": "2026-09-30T22:15:09.366000+00:00",
+          "AttachmentId": "eni-attach-954d5c42c15a634b2",
+          "DeleteOnTermination": true,
+          "DeviceIndex": 0,
+          "Status": "attached"
+        },
+        "Groups": [
+          {
+            "GroupId": "sg-default-us-east-1",
+            "GroupName": "default"
+          }
+        ],
+        "NetworkInterfaceId": "eni-a4c551a1a50d26e1a",
+        "OwnerId": "000000000000",
+        "PrivateDnsName": "ip-172-31-32-10.ec2.internal",
+        "PrivateIpAddress": "172.31.32.10",
+        "PrivateIpAddresses": [
+          {
+            "Primary": true,
+            "PrivateDnsName": "ip-172-31-32-10.ec2.internal",
+            "PrivateIpAddress": "172.31.32.10"
+          }
+        ],
+        "SourceDestCheck": true,
+        "Status": "in-use",
+        "SubnetId": "subnet-default-us-east-1-c",
+        "VpcId": "vpc-default-us-east-1"
+      }
+    ],
+    "RootDeviceName": "/dev/xvda",
+    "RootDeviceType": "ebs",
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-default-us-east-1",
+        "GroupName": "default"
+      }
+    ],
+    "SourceDestCheck": true,
+    "Tags": [],
+    "VirtualizationType": "hvm",
+    "CpuOptions": {
+      "CoreCount": 1,
+      "ThreadsPerCore": 1
+    },
+    "CapacityReservationSpecification": {
+      "CapacityReservationPreference": "open"
+    },
+    "HibernationOptions": {
+      "Configured": false
+    },
+    "MetadataOptions": {
+      "State": "applied",
+      "HttpTokens": "optional",
+      "HttpPutResponseHopLimit": 1,
+      "HttpEndpoint": "enabled",
+      "HttpProtocolIpv6": "disabled",
+      "InstanceMetadataTags": "disabled"
+    },
+    "EnclaveOptions": {
+      "Enabled": false
+    },
+    "PrivateDnsNameOptions": {
+      "HostnameType": "ip-name",
+      "EnableResourceNameDnsARecord": false,
+      "EnableResourceNameDnsAAAARecord": false
+    },
+    "MaintenanceOptions": {
+      "AutoRecovery": "default"
+    },
+    "InstanceId": "i-6bcb95c900b328a5a",
+    "ImageId": "ami-12c6146b",
+    "State": {
+      "Code": 16,
+      "Name": "running"
+    },
+    "PrivateDnsName": "ip-172-31-32-10.ec2.internal",
+    "AmiLaunchIndex": 0,
+    "InstanceType": "t3.micro",
+    "LaunchTime": "2026-09-30T22:15:09.366000+00:00",
+    "Placement": {
+      "Tenancy": "default",
+      "AvailabilityZone": "us-east-1c"
+    },
+    "Monitoring": {
+      "State": "disabled"
+    },
+    "SubnetId": "subnet-default-us-east-1-c",
+    "VpcId": "vpc-default-us-east-1",
+    "PrivateIpAddress": "172.31.32.10",
+    "ReservationId": "r-9b77305ced39e231a",
+    "c7n:MatchedFilters": [
+      "State.Name"
+    ]
+  },
+  {
+    "Architecture": "x86_64",
+    "BlockDeviceMappings": [
+      {
+        "DeviceName": "/dev/xvda",
+        "Ebs": {
+          "AttachTime": "2026-09-30T22:15:09.366000+00:00",
+          "DeleteOnTermination": true,
+          "Status": "attached",
+          "VolumeId": "vol-f8ab3e58c2d888c98"
+        }
+      }
+    ],
+    "ClientToken": "e1d9ec49-28d7-4e09-9fef-5064e598a435",
+    "EbsOptimized": false,
+    "EnaSupport": true,
+    "Hypervisor": "xen",
+    "NetworkInterfaces": [
+      {
+        "Attachment": {
+          "AttachTime": "2026-09-30T22:15:09.366000+00:00",
+          "AttachmentId": "eni-attach-2e7cb6869ddaf65bd",
+          "DeleteOnTermination": true,
+          "DeviceIndex": 0,
+          "Status": "attached"
+        },
+        "Groups": [
+          {
+            "GroupId": "sg-default-us-east-1",
+            "GroupName": "default"
+          }
+        ],
+        "NetworkInterfaceId": "eni-08b11670bc6605fd2",
+        "OwnerId": "000000000000",
+        "PrivateDnsName": "ip-172-31-32-11.ec2.internal",
+        "PrivateIpAddress": "172.31.32.11",
+        "PrivateIpAddresses": [
+          {
+            "Primary": true,
+            "PrivateDnsName": "ip-172-31-32-11.ec2.internal",
+            "PrivateIpAddress": "172.31.32.11"
+          }
+        ],
+        "SourceDestCheck": true,
+        "Status": "in-use",
+        "SubnetId": "subnet-default-us-east-1-c",
+        "VpcId": "vpc-default-us-east-1"
+      }
+    ],
+    "RootDeviceName": "/dev/xvda",
+    "RootDeviceType": "ebs",
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-default-us-east-1",
+        "GroupName": "default"
+      }
+    ],
+    "SourceDestCheck": true,
+    "Tags": [],
+    "VirtualizationType": "hvm",
+    "CpuOptions": {
+      "CoreCount": 1,
+      "ThreadsPerCore": 1
+    },
+    "CapacityReservationSpecification": {
+      "CapacityReservationPreference": "open"
+    },
+    "HibernationOptions": {
+      "Configured": false
+    },
+    "MetadataOptions": {
+      "State": "applied",
+      "HttpTokens": "optional",
+      "HttpPutResponseHopLimit": 1,
+      "HttpEndpoint": "enabled",
+      "HttpProtocolIpv6": "disabled",
+      "InstanceMetadataTags": "disabled"
+    },
+    "EnclaveOptions": {
+      "Enabled": false
+    },
+    "PrivateDnsNameOptions": {
+      "HostnameType": "ip-name",
+      "EnableResourceNameDnsARecord": false,
+      "EnableResourceNameDnsAAAARecord": false
+    },
+    "MaintenanceOptions": {
+      "AutoRecovery": "default"
+    },
+    "InstanceId": "i-ace67647ddec7c060",
+    "ImageId": "ami-12c6146b",
+    "State": {
+      "Code": 16,
+      "Name": "running"
+    },
+    "PrivateDnsName": "ip-172-31-32-11.ec2.internal",
+    "AmiLaunchIndex": 1,
+    "InstanceType": "t3.micro",
+    "LaunchTime": "2026-09-30T22:15:09.366000+00:00",
+    "Placement": {
+      "Tenancy": "default",
+      "AvailabilityZone": "us-east-1c"
+    },
+    "Monitoring": {
+      "State": "disabled"
+    },
+    "SubnetId": "subnet-default-us-east-1-c",
+    "VpcId": "vpc-default-us-east-1",
+    "PrivateIpAddress": "172.31.32.11",
+    "ReservationId": "r-e68d7548c0c7a5c63",
+    "c7n:MatchedFilters": [
+      "State.Name"
+    ]
+  }
+]

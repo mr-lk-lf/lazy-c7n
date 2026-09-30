@@ -1,0 +1,1 @@
+custodian run -f <work>/c7n.cache --dryrun -s out -p s3-* policies.yml

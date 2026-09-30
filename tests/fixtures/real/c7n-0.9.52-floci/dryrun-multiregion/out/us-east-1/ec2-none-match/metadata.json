@@ -1,0 +1,70 @@
+{
+  "policy": {
+    "name": "ec2-none-match",
+    "resource": "aws.ec2",
+    "filters": [
+      {
+        "tag:does-not-exist": "present"
+      }
+    ]
+  },
+  "version": "0.9.52",
+  "execution": {
+    "id": "c456c8e6-6c1a-4a08-b6f5-a4b648e13618",
+    "start": 1790806512.9650538,
+    "end_time": 1790806512.972598,
+    "duration": 0.007544279098510742
+  },
+  "config": {
+    "region": "us-east-1",
+    "regions": [
+      "us-east-1",
+      "eu-west-1"
+    ],
+    "cache": "<work>/c7n.cache",
+    "profile": null,
+    "account_id": "000000000000",
+    "assume_role": null,
+    "session_policy": null,
+    "external_id": null,
+    "log_group": null,
+    "tracer": null,
+    "metrics_enabled": null,
+    "metrics": null,
+    "output_dir": "out/us-east-1",
+    "cache_period": 15,
+    "dryrun": true,
+    "authorization_file": null,
+    "subparser": "run",
+    "config": null,
+    "configs": [
+      "policies.yml"
+    ],
+    "policy_filters": [
+      "ec2-*"
+    ],
+    "resource_types": [],
+    "verbose": null,
+    "quiet": null,
+    "debug": false,
+    "skip_validation": false,
+    "command": "c7n.commands.run",
+    "vars": null
+  },
+  "sys-stats": {},
+  "api-stats": {},
+  "metrics": [
+    {
+      "MetricName": "ResourceCount",
+      "Timestamp": "2026-09-30T22:15:12.972500",
+      "Value": 0,
+      "Unit": "Count"
+    },
+    {
+      "MetricName": "ResourceTime",
+      "Timestamp": "2026-09-30T22:15:12.972507",
+      "Value": 0.0005750656127929688,
+      "Unit": "Seconds"
+    }
+  ]
+}

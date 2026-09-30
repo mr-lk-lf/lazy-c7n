@@ -1,0 +1,73 @@
+{
+  "policy": {
+    "name": "s3-periodic",
+    "resource": "aws.s3",
+    "mode": {
+      "type": "periodic",
+      "schedule": "rate(1 day)",
+      "role": "arn:aws:iam::123456789012:role/custodian",
+      "tags": {
+        "custodian-info": "mode=periodic:version=0.9.52"
+      }
+    },
+    "filters": [
+      {
+        "tag:owner": "absent"
+      }
+    ]
+  },
+  "version": "0.9.52",
+  "execution": {
+    "id": "978ee75e-f8a1-4eeb-a0e5-6137c8993a4e",
+    "start": 1790806515.0115428,
+    "end_time": 1790806515.5559916,
+    "duration": 0.5444488525390625
+  },
+  "config": {
+    "region": "us-east-1",
+    "regions": [
+      "us-east-1"
+    ],
+    "cache": "<work>/c7n.cache",
+    "profile": null,
+    "account_id": "000000000000",
+    "assume_role": null,
+    "session_policy": null,
+    "external_id": null,
+    "log_group": null,
+    "tracer": null,
+    "metrics_enabled": null,
+    "metrics": null,
+    "output_dir": "out",
+    "cache_period": 15,
+    "dryrun": false,
+    "authorization_file": null,
+    "subparser": "run",
+    "config": null,
+    "configs": [
+      "policies.yml"
+    ],
+    "policy_filters": [
+      "s3-periodic"
+    ],
+    "resource_types": [],
+    "verbose": null,
+    "quiet": null,
+    "debug": false,
+    "skip_validation": false,
+    "command": "c7n.commands.run",
+    "vars": null
+  },
+  "sys-stats": {},
+  "api-stats": {
+    "lambda.GetFunction": 1,
+    "lambda.CreateFunction": 1,
+    "lambda.GetFunctionConfiguration": 1,
+    "events.DescribeRule": 1,
+    "events.PutRule": 1,
+    "lambda.AddPermission": 1,
+    "events.ListTargetsByRule": 1,
+    "events.PutTargets": 1
+  },
+  "metrics": []
+}

@@ -1,0 +1,36 @@
+[
+  {
+    "Name": "lc7n-public-logs",
+    "CreationDate": "2026-09-30T22:15:08+00:00",
+    "Location": {
+      "LocationConstraint": null
+    },
+    "Tags": [],
+    "Policy": null,
+    "Acl": {
+      "Owner": {
+        "DisplayName": "floci",
+        "ID": "000000000000"
+      },
+      "Grants": [
+        {
+          "Grantee": {
+            "DisplayName": "floci",
+            "ID": "000000000000",
+            "Type": "CanonicalUser"
+          },
+          "Permission": "FULL_CONTROL"
+        }
+      ]
+    },
+    "Replication": null,
+    "Versioning": {},
+    "Website": null,
+    "Logging": {},
+    "Notification": {},
+    "Lifecycle": null,
+    "c7n:MatchedFilters": [
+      "tag:owner"
+    ]
+  }
+]

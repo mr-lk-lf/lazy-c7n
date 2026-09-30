@@ -15,7 +15,8 @@ Each scenario directory holds:
 
 Scenarios: `validate-ok`, `validate-invalid`, `dryrun`, `dryrun-glob` (`-p 's3-*'`),
 `dryrun-multiregion` (`-r` twice), `live` (actions executed against the emulator),
-`live-periodic` (non-pull mode without `--dryrun`: tries to provision a Lambda and fails),
+`live-periodic` (non-pull mode without `--dryrun`: provisions a Lambda; moto rejects the role
+and exits 2, Floci completes it with the EventBridge rule and exits 0),
 `dryrun-api-error` (unreachable endpoint), `report-json`.
 
 Scrubbing: absolute paths are replaced with `<repo>`, `<work>` and `~`. Account id,
@@ -29,4 +30,11 @@ Regenerate:
 python3 -m venv .venv-emu && .venv-emu/bin/pip install 'moto[server]'
 .venv-emu/bin/moto_server -p 5055 &
 tests/fixtures/tools/capture-real.sh
+
+# or against Floci (needs Docker)
+docker run -d --name floci -p 4566:4566 floci/floci:latest
+LC7N_EMU_URL=http://localhost:4566 LC7N_EMU_NAME=floci tests/fixtures/tools/capture-real.sh
 ```
+
+Captures: `c7n-0.9.52-moto` (moto 5.2.3), `c7n-0.9.52-floci` (Floci 2.1.0). Both give the same
+file layout and resource counts; they differ in `live-periodic` (above) and in the fake ids.

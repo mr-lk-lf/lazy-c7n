@@ -1,0 +1,4 @@
+2026-09-30 22:15:12,962: custodian.policy:INFO policy:ec2-none-match resource:aws.ec2 region:eu-west-1 count:0 time:0.19
+2026-09-30 22:15:12,964: custodian.policy:INFO policy:ec2-mark-stop resource:aws.ec2 region:eu-west-1 count:0 time:0.00
+2026-09-30 22:15:12,972: custodian.policy:INFO policy:ec2-none-match resource:aws.ec2 region:us-east-1 count:0 time:0.00
+2026-09-30 22:15:12,973: custodian.policy:INFO policy:ec2-mark-stop resource:aws.ec2 region:us-east-1 count:2 time:0.00

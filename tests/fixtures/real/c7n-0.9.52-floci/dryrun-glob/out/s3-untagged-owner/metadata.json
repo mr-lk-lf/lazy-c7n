@@ -1,0 +1,76 @@
+{
+  "policy": {
+    "name": "s3-untagged-owner",
+    "resource": "aws.s3",
+    "filters": [
+      {
+        "tag:owner": "absent"
+      }
+    ],
+    "actions": [
+      {
+        "type": "tag",
+        "key": "owner",
+        "value": "unknown"
+      }
+    ]
+  },
+  "version": "0.9.52",
+  "execution": {
+    "id": "3fa49085-4211-4c60-b1a7-f27776dbabc9",
+    "start": 1790806512.0580223,
+    "end_time": 1790806512.0652559,
+    "duration": 0.007233619689941406
+  },
+  "config": {
+    "region": "us-east-1",
+    "regions": [
+      "us-east-1"
+    ],
+    "cache": "<work>/c7n.cache",
+    "profile": null,
+    "account_id": "000000000000",
+    "assume_role": null,
+    "session_policy": null,
+    "external_id": null,
+    "log_group": null,
+    "tracer": null,
+    "metrics_enabled": null,
+    "metrics": null,
+    "output_dir": "out",
+    "cache_period": 15,
+    "dryrun": true,
+    "authorization_file": null,
+    "subparser": "run",
+    "config": null,
+    "configs": [
+      "policies.yml"
+    ],
+    "policy_filters": [
+      "s3-*"
+    ],
+    "resource_types": [],
+    "verbose": null,
+    "quiet": null,
+    "debug": false,
+    "skip_validation": false,
+    "command": "c7n.commands.run",
+    "vars": null
+  },
+  "sys-stats": {},
+  "api-stats": {},
+  "metrics": [
+    {
+      "MetricName": "ResourceCount",
+      "Timestamp": "2026-09-30T22:15:12.064939",
+      "Value": 1,
+      "Unit": "Count"
+    },
+    {
+      "MetricName": "ResourceTime",
+      "Timestamp": "2026-09-30T22:15:12.064945",
+      "Value": 0.0006041526794433594,
+      "Unit": "Seconds"
+    }
+  ]
+}

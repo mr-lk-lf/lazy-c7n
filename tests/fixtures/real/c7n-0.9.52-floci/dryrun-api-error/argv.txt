@@ -1,0 +1,1 @@
+custodian run -f <work>/c7n-down.cache --dryrun -s out -p ec2-none-match policies.yml

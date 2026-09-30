@@ -1,0 +1,39 @@
+2026-09-30 22:15:10,281: custodian.commands:ERROR Configuration invalid: invalid.yml
+2026-09-30 22:15:10,282: custodian.commands:ERROR             Error on policy:bad-one resource:aws.nosuchresource
+{'name': 'bad-one', 'resource': 'aws.nosuchresource'} is not valid under any of the given schemas
+
+            Failed validating 'anyOf' in schema['properties']['policies']['items']:
+                {'anyOf': [{'$ref': '#/definitions/resources/aws.ec2/policy'},
+                           {'$ref': '#/definitions/resources/aws.ec2-capacity-reservation/policy'},
+                           {'$ref': '#/definitions/resources/aws.ec2-host/policy'},
+                           {'$ref': '#/definitions/resources/aws.ec2-instance-ami/policy'},
+                           {'$ref': '#/definitions/resources/aws.ec2-reserved/policy'},
+                           {'$ref': '#/definitions/resources/aws.ec2-spot-fleet-request/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-access-key/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-certificate/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-group/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-oidc-provider/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-policy/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-profile/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-role/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-saml-provider/policy'},
+                           {'$ref': '#/definitions/resources/aws.iam-user/policy'},
+                           {'$ref': '#/definitions/resources/aws.launch-template-version/policy'},
+                           {'$ref': '#/definitions/resources/aws.ops-item/policy'},
+                           {'$ref': '#/definitions/resources/aws.s3/policy'},
+                           {'$ref': '#/definitions/resources/aws.s3-directory/policy'},
+                           {'$ref': '#/definitions/resources/aws.security-hub/policy'},
+                           {'$ref': '#/definitions/resources/aws.securityhub-finding/policy'},
+                           {'$ref': '#/definitions/resources/aws.sfn-activity/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-activation/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-data-sync/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-document/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-managed-instance/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-parameter/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-patch-group/policy'},
+                           {'$ref': '#/definitions/resources/aws.ssm-session-manager/policy'},
+                           {'$ref': '#/definitions/resources/aws.step-machine/policy'}]}
+
+            On instance['policies'][1]:
+                {'name': 'bad-one', 'resource': 'aws.nosuchresource'}
+2026-09-30 22:15:10,282: custodian.commands:ERROR bad-one

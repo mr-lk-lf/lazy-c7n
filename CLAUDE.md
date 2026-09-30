@@ -34,6 +34,6 @@ Go 1.26+ (installed via mise).
 c7n and the local AWS emulator (never a real account for dev work):
 
 - `custodian` 0.9.52 lives in `.venv/` (`python3 -m venv .venv && .venv/bin/pip install c7n`).
-- moto server in `.venv-emu/` (`.venv-emu/bin/pip install 'moto[server]'`); start with `.venv-emu/bin/moto_server -p 5055`. Floci (`floci/floci`, port 4566) should work too but is untested (needs Docker).
+- moto server in `.venv-emu/` (`.venv-emu/bin/pip install 'moto[server]'`); start with `.venv-emu/bin/moto_server -p 5055`. Floci (`floci/floci`, port 4566, needs Docker) works too: `docker run -d --name floci -p 4566:4566 floci/floci:latest`. In a cloud container without a running daemon, start `dockerd` as a background task first.
 - Point `custodian` at the emulator only through the isolated env in `tests/fixtures/tools/capture-real.sh` (fake creds, `AWS_CONFIG_FILE=/dev/null`, `AWS_ENDPOINT_URL`), and pass `-f <tmp cache>` so the shared `~/.cache/cloud-custodian.cache` is not used.
 - Re-capture real output fixtures: `tests/fixtures/tools/capture-real.sh` (writes `tests/fixtures/real/c7n-<version>-<emulator>/`).

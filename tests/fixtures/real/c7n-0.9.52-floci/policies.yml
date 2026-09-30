@@ -1,0 +1,29 @@
+policies:
+  - name: s3-untagged-owner
+    resource: aws.s3
+    filters:
+      - "tag:owner": absent
+    actions:
+      - type: tag
+        key: owner
+        value: unknown
+  - name: ec2-none-match
+    resource: aws.ec2
+    filters:
+      - "tag:does-not-exist": present
+  - name: ec2-mark-stop
+    resource: aws.ec2
+    filters:
+      - "State.Name": running
+    actions:
+      - type: mark-for-op
+        op: stop
+        days: 1
+  - name: s3-periodic
+    resource: aws.s3
+    mode:
+      type: periodic
+      schedule: "rate(1 day)"
+      role: arn:aws:iam::123456789012:role/custodian
+    filters:
+      - "tag:owner": absent

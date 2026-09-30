@@ -1,0 +1,2 @@
+2026-09-30 22:15:15,021: custodian.policy:INFO Provisioning policy lambda: s3-periodic region: us-east-1
+2026-09-30 22:15:15,270: custodian.serverless:INFO Publishing custodian policy lambda function custodian-s3-periodic

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/vstrofago/lazy-c7n/internal/c7n"
 )
 
@@ -28,9 +30,13 @@ func (m Model) gateView(width, height int) string {
 	case gateConfirm:
 		lines = append(lines, s.Item.Render("This will change real resources, with your current credentials."))
 		if len(req.Argv) > 0 {
-			lines = append(lines, s.Muted.Render("$ "+strings.Join(req.Argv, " ")))
+			cmd := wrapped(s.Muted, "$ "+strings.Join(req.Argv, " "), width-4)
+			if len(cmd) > 3 {
+				cmd = append(cmd[:2], s.Muted.Render("… (the full command is in Jobs once it starts)"))
+			}
+			lines = append(lines, cmd...)
 		}
-		lines = append(lines, s.Muted.Render("backend: "+string(m.cfg.Runner.Kind)), "")
+		lines = append(lines, s.Muted.Render("backend: "+string(m.cfg.Runner.Kind)+" · "+m.cacheNote()), "")
 		body = req.Policies
 
 		var destructive []string
@@ -73,6 +79,9 @@ func (m Model) gateView(width, height int) string {
 	}
 	lines = append(lines, m.gatePolicyRows(g.step, body, room)...)
 	lines = append(lines, tail...)
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(l, max(width-4, 1), "…")
+	}
 	return s.GatePane.Width(width).Height(height).Render(strings.Join(lines, "\n"))
 }
 
@@ -140,4 +149,14 @@ func uniq(in []string) []string {
 		}
 	}
 	return out
+}
+
+// cacheNote explains c7n's resource cache, shared by dry and live runs
+// (SPEC §3): a live run soon after a dry-run acts on the same list.
+func (m Model) cacheNote() string {
+	period := m.cfg.Defaults.CachePeriod
+	if period == "" {
+		period = "15"
+	}
+	return "c7n reuses resource lists up to " + period + " min old (e.g. from your dry-run)"
 }

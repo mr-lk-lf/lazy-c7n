@@ -78,33 +78,22 @@ func withSelection(cfg config.Config, policies ...c7n.Policy) Model {
 	return next.(Model)
 }
 
-// drive feeds msgs into Update one by one, runs every command returned along
-// the way and collects the live runs that were started.
+// drive feeds msgs into Update one by one and returns the live runs that
+// were started: a live job appearing in the model. Commands are never
+// executed, so no process is ever started by these tests.
 func drive(m Model, msgs []tea.Msg) (Model, []LiveRunRequest) {
 	var runs []LiveRunRequest
 	for _, msg := range msgs {
-		next, cmd := m.Update(msg)
+		before := len(m.jobs.list)
+		next, _ := m.Update(msg)
 		m = next.(Model)
-		runs = append(runs, startedRuns(cmd)...)
+		for _, j := range m.jobs.list[before:] {
+			if j.kind == "live" {
+				runs = append(runs, *j.req)
+			}
+		}
 	}
 	return m, runs
-}
-
-func startedRuns(cmd tea.Cmd) []LiveRunRequest {
-	if cmd == nil {
-		return nil
-	}
-	switch msg := cmd().(type) {
-	case liveRunStartedMsg:
-		return []LiveRunRequest{msg.req}
-	case tea.BatchMsg:
-		var runs []LiveRunRequest
-		for _, c := range msg {
-			runs = append(runs, startedRuns(c)...)
-		}
-		return runs
-	}
-	return nil
 }
 
 func names(ps []c7n.Policy) []string {
@@ -373,11 +362,20 @@ func TestGateViewFitsSmallWindowWithManyPolicies(t *testing.T) {
 	}
 }
 
-func TestConfirmedRunIsReported(t *testing.T) {
+func TestConfirmedRunIsALiveJob(t *testing.T) {
 	m, runs := drive(withSelection(config.Default(), ec2Stop), seq(liveKey, typed("ec2-stop"), enter))
-	m, _ = drive(m, seq(liveRunStartedMsg{req: runs[0]}))
-	if out := plain(m); !strings.Contains(out, "live run of 1 policy confirmed") {
-		t.Fatalf("no status:\n%s", out)
+	if len(runs) != 1 {
+		t.Fatalf("runs = %d", len(runs))
+	}
+	j := m.jobs.list[0]
+	if j.kind != "live" || m.Screen() != ScreenJobs || !strings.Contains(plain(m), "LIVE ec2-stop") {
+		t.Fatalf("job = %+v\n%s", j, plain(m))
+	}
+	if runs[0].Spec.DryRun || !slices.Equal(runs[0].Spec.Policies, []string{"ec2-stop"}) || !slices.Equal(runs[0].Spec.Files, []string{"p.yml"}) {
+		t.Fatalf("spec = %+v", runs[0].Spec)
+	}
+	if slices.Contains(runs[0].Argv, "--dryrun") || !slices.Contains(runs[0].Argv, "ec2-stop") {
+		t.Fatalf("argv = %q", runs[0].Argv)
 	}
 }
 

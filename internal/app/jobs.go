@@ -30,11 +30,23 @@ type jobView struct {
 	done     bool
 	canceled bool
 	result   runner.Result
-	err      string // could not start
-	matched  int    // resources matched, after a run
+	err      string          // could not start
+	matched  int             // resources matched, after a run
+	req      *LiveRunRequest // what the gate confirmed, for live runs
 }
 
 func (j jobView) running() bool { return !j.done && j.err == "" }
+
+// label is the job's kind and title, for status messages.
+func (j jobView) label() string {
+	switch j.kind {
+	case "live":
+		return "LIVE run of " + j.title
+	case "dry-run":
+		return "dry-run " + j.title
+	}
+	return j.kind + " " + j.title
+}
 
 type jobsState struct {
 	list   []jobView
@@ -133,8 +145,7 @@ func (m Model) startDryRun() (tea.Model, tea.Cmd) {
 		m.setError(err.Error())
 		return m, nil
 	}
-	title := fmt.Sprintf("dry-run %s", describePolicies(sel.Names))
-	return m.addJob("dry-run", title, m.runSpec(sel, true))
+	return m.addJob("dry-run", describePolicies(sel.Names), m.runSpec(sel, true))
 }
 
 // startValidate validates the files of the selection.
@@ -155,18 +166,18 @@ func (m Model) startValidate() (tea.Model, tea.Cmd) {
 		m.setError("select a policy or file first")
 		return m, nil
 	}
-	title := "validate " + strings.Join(shortPaths(files), " ")
-	return m.addJob("validate", title, runner.Spec{Subcommand: "validate", Files: files})
+	return m.addJob("validate", strings.Join(shortPaths(files), " "), runner.Spec{Subcommand: "validate", Files: files})
 }
 
-func (m Model) addJob(kind, title string, spec runner.Spec) (tea.Model, tea.Cmd) {
+func (m Model) addJob(kind, title string, spec runner.Spec) (Model, tea.Cmd) {
 	m.jobs.nextID++
 	id := m.jobs.nextID
-	m.jobs.list = append(m.jobs.list, jobView{id: id, kind: kind, title: title})
+	j := jobView{id: id, kind: kind, title: title}
+	m.jobs.list = append(m.jobs.list, j)
 	m.jobs.cursor = len(m.jobs.list) - 1
 	m.jobs.follow, m.jobs.scroll = true, 0
 	m.screen, m.focus = ScreenJobs, paneRight
-	m.setStatus(title + " started")
+	m.setStatus(j.label() + " started")
 	return m, startJob(id, kind, spec, string(m.cfg.Runner.Kind), m.store, m.cfgRunnerArgv(), m.version)
 }
 
@@ -347,15 +358,15 @@ func (m *Model) setJobStatus(j jobView) {
 	code := j.result.ExitCode
 	switch {
 	case j.canceled:
-		m.setError(j.title + " canceled")
+		m.setError(j.label() + " canceled")
 	case j.kind == "validate" && code == 0:
-		m.setStatus(j.title + ": valid")
+		m.setStatus(j.label() + ": valid")
 	case j.kind == "validate":
-		m.setError(j.title + ": INVALID (see the output)")
+		m.setError(j.label() + ": INVALID (see the output)")
 	case code != 0:
-		m.setError(fmt.Sprintf("%s failed (exit %d) · %d resources matched · 2 Runs for details", j.title, code, j.matched))
+		m.setError(fmt.Sprintf("%s failed (exit %d) · %d resources matched · 2 Runs for details", j.label(), code, j.matched))
 	default:
-		m.setStatus(fmt.Sprintf("%s finished · %d resources matched · 2 Runs for details", j.title, j.matched))
+		m.setStatus(fmt.Sprintf("%s finished · %d resources matched · 2 Runs for details", j.label(), j.matched))
 	}
 }
 
@@ -367,7 +378,7 @@ func (m Model) updateJobs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			j := &st.list[st.cursor]
 			if j.running() && j.job != nil {
 				j.canceled = true
-				m.setStatus("canceling " + j.title + "…")
+				m.setStatus("canceling " + j.label() + "…")
 				return m, cancelJob(j.job)
 			}
 		}

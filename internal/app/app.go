@@ -192,9 +192,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logLoadedMsg:
 		m.runs.log = msg
 
-	case liveRunStartedMsg:
-		m.setStatus(liveRunStatus(msg.req))
-
 	case versionMsg:
 		m.version, m.versionErr = msg.version, msg.err
 		if msg.err != "" {
@@ -220,7 +217,7 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		var approved bool
 		m.gate, approved = m.gate.update(msg)
 		if approved {
-			return m, m.startLiveRun(req)
+			return m.startLiveRun(req)
 		}
 		return m, nil
 	}
@@ -367,27 +364,24 @@ func (m *Model) openLiveGate() {
 		m.setError("select a policy first")
 		return
 	}
-	if _, err := c7n.Select(m.policies.files, chosen); err != nil {
+	sel, err := c7n.Select(m.policies.files, chosen)
+	if err != nil {
 		m.setError(err.Error())
 		return
 	}
+	spec := m.runSpec(sel, false)
 	m.status = ""
-	m.gate = openGate(LiveRunRequest{Policies: chosen})
+	m.gate = openGate(LiveRunRequest{Policies: chosen, Spec: spec, Argv: m.previewArgv(spec)})
 }
-
-// liveRunStartedMsg reports that a confirmed live run was handed to the
-// runner.
-type liveRunStartedMsg struct{ req LiveRunRequest }
 
 // startLiveRun is the only place a live run starts, and it is only called
-// when the gate approves. Until the runner exists (M3) it just reports back.
-func (m Model) startLiveRun(req LiveRunRequest) tea.Cmd {
-	return func() tea.Msg { return liveRunStartedMsg{req: req} }
-}
-
-func liveRunStatus(req LiveRunRequest) string {
-	n := len(req.Policies)
-	return "live run of " + itoa(n) + " " + plural(n, "policy", "policies") + " confirmed (running arrives in M3)"
+// when the gate approves (see gate.go).
+func (m Model) startLiveRun(req LiveRunRequest) (tea.Model, tea.Cmd) {
+	spec := req.Spec
+	spec.DryRun = false
+	m, cmd := m.addJob("live", describePolicies(spec.Policies), spec)
+	m.jobs.list[len(m.jobs.list)-1].req = &req
+	return m, cmd
 }
 
 func plural(n int, one, many string) string {

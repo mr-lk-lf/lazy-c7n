@@ -22,6 +22,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/vstrofago/lazy-c7n/internal/c7n"
+	"github.com/vstrofago/lazy-c7n/internal/runner"
 )
 
 type gateStep int
@@ -39,8 +40,11 @@ const deployWord = "DEPLOY"
 // LiveRunRequest is what the gate shows and, once confirmed, what runs.
 type LiveRunRequest struct {
 	Policies []c7n.Policy
-	// Argv is the exact custodian command line. Filled by the runner (M2);
-	// shown only when present.
+	// Spec is the custodian invocation that runs once confirmed (never
+	// --dryrun).
+	Spec runner.Spec
+	// Argv is the command line shown in the gate (with a placeholder for
+	// the run directory, which does not exist yet).
 	Argv []string
 }
 
@@ -70,6 +74,9 @@ func (g liveGate) open() bool { return g.step != gateClosed }
 func openGate(req LiveRunRequest) liveGate {
 	req.Policies = slices.Clone(req.Policies)
 	req.Argv = slices.Clone(req.Argv)
+	req.Spec.Policies = slices.Clone(req.Spec.Policies)
+	req.Spec.Files = slices.Clone(req.Spec.Files)
+	req.Spec.Regions = slices.Clone(req.Spec.Regions)
 	return liveGate{step: gateConfirm, req: req}
 }
 

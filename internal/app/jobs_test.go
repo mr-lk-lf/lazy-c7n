@@ -165,7 +165,7 @@ func TestDryRunEndToEnd(t *testing.T) {
 		t.Errorf("no private cache: %q", args)
 	}
 	out := plain(m)
-	for _, want := range []string{"dry-run ec2-mark-stop", "policy:ec2-mark-stop", "exit 0"} {
+	for _, want := range []string{"DRY  ec2-mark-stop", "policy:ec2-mark-stop", "exit 0"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
@@ -231,5 +231,52 @@ func TestQuitWithRunningJobAsksFirst(t *testing.T) {
 	_, cmd = send(m, key1('q'))
 	if cmd == nil {
 		t.Fatal("second q did not quit")
+	}
+}
+
+func fakeArgs(t *testing.T, j jobView) []string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(j.run.Dir, "argv.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Split(string(data), "\n")
+}
+
+func TestLiveRunEndToEnd(t *testing.T) {
+	m := policyCursor(t, withFakeCustodian(t), "ec2-mark-stop")
+
+	// Without the name nothing starts.
+	m, _ = send(m, seq(key1('R'), typed("ec2-mark"), enter)...)
+	if len(m.jobs.list) != 0 || !m.gate.open() {
+		t.Fatalf("jobs=%d gate=%v", len(m.jobs.list), m.gate.open())
+	}
+	m, cmd := send(m, seq(typed("ec2-mark-stop"), enter)...)
+	m = settle(t, m, cmd)
+
+	j := m.jobs.list[0]
+	if j.kind != "live" || !j.done || j.result.ExitCode != 0 || j.run.Kind != "live" {
+		t.Fatalf("job = %+v", j)
+	}
+	args := fakeArgs(t, j)
+	if slices.Contains(args, "--dryrun") || !slices.Contains(args, "ec2-mark-stop") || args[0] != "run" {
+		t.Fatalf("live custodian args %q", args)
+	}
+	runs, _ := m.store.List()
+	if len(runs) != 1 || runs[0].Kind != "live" || !runs[0].Finished {
+		t.Fatalf("history = %+v", runs)
+	}
+}
+
+func TestLiveRunNonPullNeedsDeploy(t *testing.T) {
+	m := policyCursor(t, withFakeCustodian(t), "s3-periodic")
+	m, _ = send(m, seq(key1('R'), typed("s3-periodic"), enter)...)
+	if !m.gate.open() || m.gate.step != gateDeploy || len(m.jobs.list) != 0 {
+		t.Fatalf("step=%v jobs=%d", m.gate.step, len(m.jobs.list))
+	}
+	m, cmd := send(m, seq(typed("DEPLOY"), enter)...)
+	m = settle(t, m, cmd)
+	if len(m.jobs.list) != 1 || slices.Contains(fakeArgs(t, m.jobs.list[0]), "--dryrun") {
+		t.Fatalf("jobs = %+v", m.jobs.list)
 	}
 }

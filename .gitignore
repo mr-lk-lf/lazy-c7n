@@ -4,3 +4,4 @@
 .venv/
 # real c7n output captured locally may contain account data; commit only scrubbed fixtures
 /tests/fixtures/real-unscrubbed/
+.venv-emu/

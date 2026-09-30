@@ -1,0 +1,1 @@
+2026-09-30 13:44:17,226 - custodian.policy - INFO - policy:s3-untagged-owner resource:aws.s3 region:us-east-1 count:1 time:0.00

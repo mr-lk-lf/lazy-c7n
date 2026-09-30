@@ -1,18 +1,25 @@
 # Handoff — read this first in the new session
 
-Created from a planning session in `../cc-visualizer` (2026-09-30). Everything decided so far is in `docs/SPEC.md`; this file is the short "where we are / what's next".
+Created from an initial planning session (2026-09-30). Everything decided so far is in `docs/SPEC.md`; this file is the short "where we are / what's next".
 
 ## Decisions already made (don't re-litigate)
-- Two separate projects: **cc-visualizer** (web, read-only, aims at being an open alternative to Stacklet/Harness Cloud Asset Governance; proceeds slowly; funding only for the heavy features later) and **lazy-c7n** (this repo; TUI, fully open, non-profit, released fast).
-- lazy-c7n is allowed to *execute* policies (unlike cc-visualizer, whose philosophy is strictly read-only). Responsibility for what runs lies with the user.
+- lazy-c7n is a fully independent project: TUI, fully open, non-profit, released fast. It has no relationship with any other project.
+- lazy-c7n is allowed to *execute* policies. Responsibility for what runs lies with the user.
 - Safety choices: permissive license with no-warranty clause, dry-run by default + typed confirmation for live runs + destructive-action highlighting, and an explicit "not affiliated with Cloud Custodian/CNCF" disclaimer.
 - Repo name `lazy-c7n`; proposed binary/crate name `lazyc7n` (open question, SPEC §9.1).
-- License: MIT committed now; target is `MIT OR Apache-2.0` (add `LICENSE-APACHE` from the canonical text at scaffold time, not from memory).
-- cc-visualizer is to be left alone for now (known issues there: broken lint targets, README mentions non-existent files; license still TBD).
+- License: `MIT OR Apache-2.0` (`LICENSE-MIT` + `LICENSE-APACHE`, the latter from apache.org).
 
 ## Environment notes (as of creation)
 - This machine had **no Rust toolchain and no `custodian`** installed. Install with mise/rustup (`mise use -g rust` or rustup) and `python3 -m venv .venv && .venv/bin/pip install c7n`.
-- Git: repo initialised on `main`, one local commit, **no remote, nothing pushed**. `gh` CLI is available; creating the GitHub repo was deliberately left for the user to decide (name/visibility).
+- Git: GitHub repo `vstrofago/lazy-c7n`, **private** until the first public release; `main` pushed.
+
+## Progress (2026-09-30, session 2)
+- Rust 1.98.1 (rustup, `~/.cargo/bin`), `custodian` 0.9.52 in `.venv/`, moto 5.2.3 in `.venv-emu/`.
+- Docker daemon is running but the user is not in the `docker` group, so Floci and the docker backend could not be tried. Fix: `sudo usermod -aG docker $USER` + re-login.
+- All **[verify]** items resolved against c7n 0.9.52 + moto (SPEC §3, §6.5), except the docker backend image/paths. Captures in `tests/fixtures/real/c7n-0.9.52-moto/`, reproducible via `tests/fixtures/tools/capture-real.sh`.
+- Findings that change the design: `execution.end_time` (not `end`); multi-region output is `<out>/<region>/<policy>/`; `resources.json` absent on error and on live runs of non-pull modes; `action-<name>` files are optional; `run` exits 2 on any policy error; logs only on stderr; c7n's resource cache (`-f`, 15 min) is shared between dry-run and live.
+- M0 steps 1, 2, 3 done: `cargo init` (crate/binary `lazyc7n`), ratatui 0.30 via `ratatui::run` (panic hook restores terminal), config loading with user + `.lazyc7n.toml` merge, empty screens, CI (fmt, clippy, test on 3 OSes). Dual license files in place (`LICENSE-MIT`, `LICENSE-APACHE` from apache.org).
+- Next: step 4 (live-run gate state machine + its tests), then M1. No `tokio` yet: add it with the runner in M2.
 
 ## Suggested first steps (M0, see SPEC §8)
 1. Install Rust toolchain; install c7n in `.venv` (git-ignored).

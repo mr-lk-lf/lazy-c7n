@@ -1,0 +1,26 @@
+2026-09-30 13:44:18,690 - custodian.policy - INFO - Provisioning policy lambda: s3-periodic region: us-east-1
+2026-09-30 13:44:18,779 - custodian.serverless - INFO - Publishing custodian policy lambda function custodian-s3-periodic
+2026-09-30 13:44:18,789 - custodian.output - ERROR - Error while executing policy
+Traceback (most recent call last):
+  File "<repo>/.venv/lib/python3.14/site-packages/c7n/policy.py", line 587, in provision
+    return manager.publish(
+           ~~~~~~~~~~~~~~~^
+        self.policy_lambda(self.policy),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        role=self.policy.options.assume_role)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/.venv/lib/python3.14/site-packages/c7n/mu.py", line 401, in publish
+    result, changed, existing = self._create_or_update(
+                                ~~~~~~~~~~~~~~~~~~~~~~^
+        func, role, s3_uri, qualifier=alias)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/.venv/lib/python3.14/site-packages/c7n/mu.py", line 526, in _create_or_update
+    result = self.client.create_function(**params)
+  File "<repo>/.venv/lib/python3.14/site-packages/botocore/client.py", line 606, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/.venv/lib/python3.14/site-packages/botocore/context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+  File "<repo>/.venv/lib/python3.14/site-packages/botocore/client.py", line 1094, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.errorfactory.InvalidParameterValueException: An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: The role defined for the function cannot be assumed by Lambda.

@@ -1,0 +1,77 @@
+{
+  "policy": {
+    "name": "ec2-mark-stop",
+    "resource": "aws.ec2",
+    "filters": [
+      {
+        "State.Name": "running"
+      }
+    ],
+    "actions": [
+      {
+        "type": "mark-for-op",
+        "op": "stop",
+        "days": 1
+      }
+    ]
+  },
+  "version": "0.9.52",
+  "execution": {
+    "id": "1d160dd6-4d79-4e74-9b04-8ecf789bef1f",
+    "start": 1790797457.7236738,
+    "end_time": 1790797457.7241051,
+    "duration": 0.00043129920959472656
+  },
+  "config": {
+    "region": "eu-west-1",
+    "regions": [
+      "us-east-1",
+      "eu-west-1"
+    ],
+    "cache": "<work>/c7n.cache",
+    "profile": null,
+    "account_id": "123456789012",
+    "assume_role": null,
+    "session_policy": null,
+    "external_id": null,
+    "log_group": null,
+    "tracer": null,
+    "metrics_enabled": null,
+    "metrics": null,
+    "output_dir": "out/eu-west-1",
+    "cache_period": 15,
+    "dryrun": true,
+    "authorization_file": null,
+    "subparser": "run",
+    "config": null,
+    "configs": [
+      "policies.yml"
+    ],
+    "policy_filters": [
+      "ec2-*"
+    ],
+    "resource_types": [],
+    "verbose": null,
+    "quiet": null,
+    "debug": false,
+    "skip_validation": false,
+    "command": "c7n.commands.run",
+    "vars": null
+  },
+  "sys-stats": {},
+  "api-stats": {},
+  "metrics": [
+    {
+      "MetricName": "ResourceCount",
+      "Timestamp": "2026-09-30T13:44:17.724069",
+      "Value": 0,
+      "Unit": "Count"
+    },
+    {
+      "MetricName": "ResourceTime",
+      "Timestamp": "2026-09-30T13:44:17.724072",
+      "Value": 0.00023627281188964844,
+      "Unit": "Seconds"
+    }
+  ]
+}

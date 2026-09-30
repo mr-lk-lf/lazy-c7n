@@ -1,0 +1,86 @@
+{
+  "policy": {
+    "name": "s3-untagged-owner",
+    "resource": "aws.s3",
+    "filters": [
+      {
+        "tag:owner": "absent"
+      }
+    ],
+    "actions": [
+      {
+        "type": "tag",
+        "key": "owner",
+        "value": "unknown"
+      }
+    ]
+  },
+  "version": "0.9.52",
+  "execution": {
+    "id": "e530938f-c14b-4a80-961c-2f080630f723",
+    "start": 1790797458.1387877,
+    "end_time": 1790797458.246076,
+    "duration": 0.10728836059570312
+  },
+  "config": {
+    "region": "us-east-1",
+    "regions": [
+      "us-east-1"
+    ],
+    "cache": "<work>/c7n.cache",
+    "profile": null,
+    "account_id": "123456789012",
+    "assume_role": null,
+    "session_policy": null,
+    "external_id": null,
+    "log_group": null,
+    "tracer": null,
+    "metrics_enabled": null,
+    "metrics": null,
+    "output_dir": "out",
+    "cache_period": 15,
+    "dryrun": false,
+    "authorization_file": null,
+    "subparser": "run",
+    "config": null,
+    "configs": [
+      "policies.yml"
+    ],
+    "policy_filters": [
+      "s3-untagged-owner",
+      "ec2-mark-stop"
+    ],
+    "resource_types": [],
+    "verbose": null,
+    "quiet": null,
+    "debug": false,
+    "skip_validation": false,
+    "command": "c7n.commands.run",
+    "vars": null
+  },
+  "sys-stats": {},
+  "api-stats": {
+    "s3.GetBucketTagging": 1,
+    "s3.PutBucketTagging": 1
+  },
+  "metrics": [
+    {
+      "MetricName": "ResourceCount",
+      "Timestamp": "2026-09-30T13:44:18.142450",
+      "Value": 1,
+      "Unit": "Count"
+    },
+    {
+      "MetricName": "ResourceTime",
+      "Timestamp": "2026-09-30T13:44:18.142455",
+      "Value": 0.000354766845703125,
+      "Unit": "Seconds"
+    },
+    {
+      "MetricName": "ActionTime",
+      "Timestamp": "2026-09-30T13:44:18.246070",
+      "Value": 0.10354185104370117,
+      "Unit": "Seconds"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 A terminal UI (TUI) wrapper around the [Cloud Custodian](https://cloudcustodian.io/) CLI (`custodian`, a.k.a. c7n). Think `lazygit` / `lazydocker`, for c7n: browse policies, validate and dry-run them, run them, and inspect reports and logs without memorising flags.
 
-Status legend used below: **[verify]** = written from memory/docs, must be confirmed against a real `custodian` install (`custodian run -h`, real output dirs) before being relied on.
+Status legend used below: **[verify]** = written from memory/docs, must be confirmed against a real `custodian` install (`custodian run -h`, real output dirs) before being relied on. **[verified c7n 0.9.52]** = confirmed on 2026-09-30 against `custodian` 0.9.52 (Python 3.14) running against a local AWS emulator (moto server); raw captures in `tests/fixtures/real/c7n-0.9.52-moto/`.
 
 ## 1. Goals and non-goals
 
@@ -15,7 +15,7 @@ Status legend used below: **[verify]** = written from memory/docs, must be confi
 
 ### Non-goals
 - Not a reimplementation of c7n. Policy evaluation, filters, actions and cloud API calls are always done by the real `custodian` executable.
-- No hosting, no multi-user features, no RBAC, no central history. (That territory belongs to the sibling project `cc-visualizer`.)
+- No hosting, no multi-user features, no RBAC, no central history.
 - No credential management. Credentials are whatever the user's environment already provides (env vars, profiles, SSO, docker env-file). lazy-c7n never stores or prints secrets.
 - No policy authoring IDE in v0.x (viewing yes; a full editor is out; "open in `$EDITOR`" is in).
 - No official affiliation with Cloud Custodian or the CNCF (see §10).
@@ -37,34 +37,46 @@ lazy-c7n shells out; it never links c7n code.
 
 | Need | Command | Notes |
 |---|---|---|
-| Validate | `custodian validate <file>` | parse stderr/exit code |
-| Dry-run | `custodian run --dryrun -s <out> [-p <policy>] [--region R] <file>` | **[verify]** flag set via `custodian run -h` |
+| Validate | `custodian validate [--strict] <file>...` | exit 0 valid / 1 invalid; messages on stderr. Only the first schema error per file is reported |
+| Dry-run | `custodian run --dryrun -s <out> [-p <policy>]... [-r <region>]... <file>` | `-d`/`--dryrun`/`--dry-run` |
 | Run | `custodian run -s <out> ... <file>` | gated |
-| Report | `custodian report -s <out> --format json <file>` | optional; we can read `resources.json` directly |
+| Report | `custodian report -s <out> --format json [-p <policy>] <file>` | optional; JSON = `resources.json` items plus `policy`, `region`, `CustodianDate`, `c7n:MatchedFilters` |
 | Schema | `custodian schema [--json] [<cloud>.<resource>[.<category>.<item>]]` | cache result per c7n version |
-| Version | `custodian version` | shown in status bar; cache key for schema |
+| Version | `custodian version` | bare version (`0.9.52`) on stdout; shown in status bar; cache key for schema. `version --debug` dumps Python/platform/pip freeze |
+
+**[verified c7n 0.9.52]** CLI facts:
+- Subcommands: `run, schema, report, logs, metrics, version, validate` (`logs`/`metrics` are hidden from `-h`).
+- `run` flags: `-s/--output-dir` (required; dir or `s3://`), `-p/--policies` (repeatable, **glob** via fnmatch: `-p 's3-*'`), `-t/--resource` (repeatable), `-r/--region` (repeatable, `all` allowed), `--profile`, `--assume`, `--external-id`, `-f/--cache` (default `~/.cache/cloud-custodian.cache`), `--cache-period` (minutes, default 15), `--session-policy`, `-d/--dryrun`, `--skip-validation`, `-m/--metrics-enabled`, `--trace`, `-l/--log-group`, `-v`, `-q` (repeatable).
+- All logging goes to **stderr**; `run` and `validate` write nothing to stdout. Log line format: `YYYY-MM-DD HH:MM:SS,mmm: <logger>:<LEVEL> <message>`, e.g. `custodian.policy:INFO policy:<name> resource:<type> region:<r> count:<n> time:<s>` and `policy:<name> action:<action-class> resources:<n> execution_time:<s>`.
+- Exit codes of `run`: `0` all policies ok; `2` if any policy raised (the others still run; stderr ends with `The following policies had errors while executing` + the list of names, preceded by the Python traceback).
+- Resource cache: c7n caches `describe` results for `--cache-period` minutes in the `-f` file, keyed by account/region/resource type. A live run shortly after a dry-run reuses the dry-run's resource list. lazy-c7n should pass `-f <state>/c7n.cache` (or expose it) so behaviour is explicit, and show the cache period in the preflight.
+- `pip install c7n` ships **AWS only** (387 resource types in 0.9.52); Azure/GCP/etc. need `c7n_azure`, `c7n_gcp`, … installed in the same env. `schema --json` is ~3.4 MB with `definitions.resources["<cloud>.<type>"].{actions,filters,policy}` plus `definitions.policy-mode`.
 
 ### Invocation backends (configurable)
 1. `binary` (default): `custodian` on `$PATH`, or an explicit path (e.g. a venv).
-2. `docker`: `docker run ... cloudcustodian/c7n run -s /home/custodian/output /home/custodian/policy.yml` with env passthrough of `AWS_*`, `AZURE_*`, `GOOGLE_*` (pattern from the official quickstart). Volume mounts for policy dir and run output dir.
+2. `docker`: `docker run ... cloudcustodian/c7n run -s /home/custodian/output /home/custodian/policy.yml` **[verify: image name and paths not yet checked, docker was unavailable]** with env passthrough of `AWS_*`, `AZURE_*`, `GOOGLE_*` (pattern from the official quickstart). Volume mounts for policy dir and run output dir.
 3. `command`: arbitrary prefix (e.g. `uvx --from c7n custodian`, `aws-vault exec prod --`).
 
 The backend is an abstraction (`trait Runner`) so a **fake runner** can be used in tests (§11).
 
 ### c7n output layout (what we read back)
-With `-s <out>` c7n writes one sub-directory per policy **[verify exact file set on a real run]**:
+With `-s <out>` c7n writes one sub-directory per policy **[verified c7n 0.9.52]**:
 
 ```
-<out>/<policy-name>/
-  metadata.json        # policy spec, account_id, region, execution.start/end  (written last)
-  resources.json       # array of matched resources in raw provider API shape
-  custodian-run.log    # per-policy log
-  (other files, e.g. per-action outputs, may exist)
+<out>/<policy-name>/            # single region
+<out>/<region>/<policy-name>/   # when more than one -r is given (one subdir per region)
+  metadata.json        # always written (at context exit, i.e. last), also when the policy errored
+  resources.json       # matched resources, raw provider API shape; `[]` when nothing matched.
+                       #   ABSENT when the policy raised before/while fetching, and for live runs of
+                       #   non-pull modes (provisioning does not evaluate resources)
+  custodian-run.log    # per-policy log (same lines as stderr for that policy, incl. tracebacks)
+  action-<action-class-name>   # optional, no extension, JSON; only when an action returns results
+                               #   (e.g. `tag`/`mark-for-op` return nothing, so no file)
 ```
+
+`metadata.json` top-level keys: `policy` (the policy spec as loaded), `version` (c7n version), `execution` = `{id, start, end_time, duration}` (`start`/`end_time` are **epoch seconds as floats**; there is **no `execution.end`**), `config` (the effective CLI options: `region`, `regions`, `account_id`, `profile`, `dryrun`, `output_dir`, `cache`, `cache_period`, `assume_role`, `external_id`, `policy_filters`, …; no credentials, but treat as potentially sensitive), `sys-stats`, `api-stats` (map `"service.Operation": count`), `metrics` (list of `{MetricName, Timestamp, Value, Unit}`).
 
 Important: c7n reuses `<out>/<policy-name>/` — running the same policy again into the same `-s` dir **overwrites** it. So lazy-c7n gives **every run its own output dir** (§5) instead of reusing one. This is what makes a local run history possible.
-
-The same layout is what the sibling project `cc-visualizer` ingests (its `ingestor/parser.py` is a working reference for the `metadata.json` / `resources.json` fields used: `policy.name`, `policy.resource`, `region`, `account_id`, `execution.start`, `execution.end`).
 
 ## 4. Screens and navigation
 
@@ -119,7 +131,7 @@ No database. Plain files only.
    - *notify-only*: `notify`, `post-finding`, …
    - Unknown action types are treated as **mutating** (fail closed).
 4. **Confirmation gate** for live runs: default `type-name` = user must type the policy name (or `ALL` for multi-policy). Extra red warning when any destructive action is present. Never skippable by a config key in a way that is silent; if `confirm_live` is weakened, the status bar shows it.
-5. **Non-`pull` modes warning [verify behaviour]**: for `mode.type` other than `pull` (e.g. `periodic`, `cloudtrail`, `config-rule`), `custodian run` may *provision* Lambda functions/event sources rather than evaluating once. lazy-c7n flags these policies explicitly and (v0) blocks live-running them unless an "I understand this deploys infrastructure" confirmation is given.
+5. **Non-`pull` modes warning [verified c7n 0.9.52]**: every mode other than `pull` (`periodic`, `schedule`, `phd`, `cloudtrail`, `ec2-instance-state`, `asg-instance-state`, `guard-duty`, `config-poll-rule`, `config-rule`, `hub-finding`, `hub-action`) is a serverless mode. Source (`c7n/policy.py`, `Policy.__call__`): with `--dryrun` **any** mode is evaluated once as `pull` (runtime-only filters trimmed, actions skipped), so dry-run is safe for them. **Without** `--dryrun` a serverless mode calls `provision()`: it creates/updates the Lambda function and its event source (CloudWatch Events rule, Config rule, …) and does **not** evaluate resources (no `resources.json`). Confirmed on the emulator: the live run of a `periodic` policy called `lambda:CreateFunction`. lazy-c7n flags these policies explicitly and (v0) blocks live-running them unless an "I understand this deploys infrastructure" confirmation is given. Mode list source of truth: `custodian schema mode`.
 6. **Credentials never shown**: only non-secret context (profile name, region, account id *if already present in c7n output*). Env var values matching `*KEY*|*SECRET*|*TOKEN*` are never rendered or logged.
 7. **Audit trail**: every run, dry or live, has a `run.json` with the full argv (secrets redacted).
 8. **No implicit live**: there is no CLI flag that skips the gate in interactive mode. (A future non-interactive `lazyc7n run --yes` for scripts, if ever added, must be explicit and documented as a scripting escape hatch.)
@@ -156,7 +168,7 @@ Key design rules:
 - Subprocesses: stream stdout/stderr line-by-line into `Msg::JobOutput`; support cancel (SIGINT first, then kill after timeout). Run in their own process group.
 - Parsing must be **lenient**: c7n versions/providers differ; unknown fields ignored, missing optional fields shown as `-`.
 - Large `resources.json` (100k+ items): load lazily/paged, never block the render loop.
-- Multi-cloud: v0.1 targets AWS shapes first, but nothing in the core may assume AWS (Azure/GCP resource ids differ). Resource-id extraction is a pluggable table (see `cc-visualizer/ingestor/parser.py` `RESOURCE_ID_FIELDS` for a starting AWS mapping).
+- Multi-cloud: v0.1 targets AWS shapes first, but nothing in the core may assume AWS (Azure/GCP resource ids differ). Resource-id extraction is a pluggable table.
 
 ## 8. Milestones
 
@@ -167,12 +179,12 @@ Key design rules:
 - **M4 — Schema browser & polish**: schema cache, fuzzy search, `$EDITOR` integration, theming, docker/command backends, prune command.
 - **M5 — Release**: `cargo-dist` (or equivalent) binaries for Linux/macOS/Windows, crates.io, Homebrew tap, AUR; demo GIF (vhs), docs site optional.
 
-Post-1.0 ideas (not committed): diff between two runs of the same policy, export to CSV/JSON, reading from S3 output (`s3://`), Azure/GCP polish, a `lazyc7n run` headless mode, optional read-only push of run outputs to a cc-visualizer watch directory.
+Post-1.0 ideas (not committed): diff between two runs of the same policy, export to CSV/JSON, reading from S3 output (`s3://`), Azure/GCP polish, a `lazyc7n run` headless mode.
 
 ## 9. Open questions (decide during M0–M1)
 1. Binary name: `lazyc7n` (current choice) vs `lazy-c7n`. Repo name stays `lazy-c7n`. Check crates.io / GitHub / package-manager collisions before publishing.
 2. YAML crate choice (see §7) and whether to preserve comments/line numbers for "jump to line in `$EDITOR`".
-3. Exact c7n flags/output file set per current c7n release **[verify]** — first task of M0: install c7n in a venv, run against the fixtures, and record real output in `tests/fixtures/real/`.
+3. ~~Exact c7n flags/output file set~~ — resolved for 0.9.52 (§3, `tests/fixtures/real/c7n-0.9.52-moto/`). Re-run `tests/fixtures/tools/capture-real.sh` when bumping the supported c7n version.
 4. Policy discovery: only files passed/configured, or recursive `*.yml|*.yaml` under `policy_dirs` filtered by top-level `policies:` key? (Proposed: the latter.)
 5. Windows support level for v0.x (subprocess groups/signals differ).
 
@@ -189,6 +201,7 @@ Post-1.0 ideas (not committed): diff between two runs of the same policy, export
 - **State machine tests**: feed `Msg` sequences into `update()` and assert the live-run gate can't be bypassed (this is the most important test file in the repo).
 - **Snapshot tests**: render each screen with `TestBackend` + `insta`.
 - **Process tests**: a fake `custodian` (shell/Python script on `PATH`) that emits scripted stdout/stderr/exit codes and writes fixture output dirs → exercises runner, streaming, cancellation without any cloud access.
-- **Fixtures**: synthetic c7n output; `../cc-visualizer/test-data/generate_synthetic_data.py` generates a compatible layout (copy it into `tests/fixtures/tools/` when needed; it is deterministic with seed 42). Plus real captured output from M0 step 3 of §9.
+- **Fixtures**: real captured output in `tests/fixtures/real/` (see its README), plus synthetic output (large/edge cases) from a small deterministic generator in `tests/fixtures/tools/` (to be written, when needed).
+- **Local cloud emulator** for manual/dev testing without a cloud account: `moto` server (`pip install 'moto[server]'` in `.venv-emu`, no Docker needed) or Floci (`floci/floci` image, LocalStack-compatible, port 4566; needs Docker; not yet tried with c7n). Point c7n at it with `AWS_ENDPOINT_URL` + fake credentials and `AWS_CONFIG_FILE=/dev/null` (see `tests/fixtures/tools/capture-real.sh`). Emulators are never a CI dependency.
 - CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` on Linux/macOS/Windows.
 - Real-cloud tests are **never** part of CI; a manual checklist lives in `docs/manual-testing.md` (to be written).

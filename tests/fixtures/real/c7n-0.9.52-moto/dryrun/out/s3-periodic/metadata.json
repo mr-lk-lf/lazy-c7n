@@ -1,0 +1,72 @@
+{
+  "policy": {
+    "name": "s3-periodic",
+    "resource": "aws.s3",
+    "mode": {
+      "type": "periodic",
+      "schedule": "rate(1 day)",
+      "role": "arn:aws:iam::123456789012:role/custodian"
+    },
+    "filters": [
+      {
+        "tag:owner": "absent"
+      }
+    ]
+  },
+  "version": "0.9.52",
+  "execution": {
+    "id": "76b5ce1e-3ca0-4ce0-b00f-ee5c275a8abd",
+    "start": 1790797456.8496573,
+    "end_time": 1790797456.8500302,
+    "duration": 0.00037288665771484375
+  },
+  "config": {
+    "region": "us-east-1",
+    "regions": [
+      "us-east-1"
+    ],
+    "cache": "<work>/c7n.cache",
+    "profile": null,
+    "account_id": "123456789012",
+    "assume_role": null,
+    "session_policy": null,
+    "external_id": null,
+    "log_group": null,
+    "tracer": null,
+    "metrics_enabled": null,
+    "metrics": null,
+    "output_dir": "out",
+    "cache_period": 15,
+    "dryrun": true,
+    "authorization_file": null,
+    "subparser": "run",
+    "config": null,
+    "configs": [
+      "policies.yml"
+    ],
+    "policy_filters": [],
+    "resource_types": [],
+    "verbose": null,
+    "quiet": null,
+    "debug": false,
+    "skip_validation": false,
+    "command": "c7n.commands.run",
+    "vars": null
+  },
+  "sys-stats": {},
+  "api-stats": {},
+  "metrics": [
+    {
+      "MetricName": "ResourceCount",
+      "Timestamp": "2026-09-30T13:44:16.849988",
+      "Value": 1,
+      "Unit": "Count"
+    },
+    {
+      "MetricName": "ResourceTime",
+      "Timestamp": "2026-09-30T13:44:16.849991",
+      "Value": 0.00021028518676757812,
+      "Unit": "Seconds"
+    }
+  ]
+}

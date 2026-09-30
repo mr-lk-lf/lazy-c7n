@@ -1,0 +1,1 @@
+custodian run -f <work>/c7n.cache -s out -p s3-untagged-owner -p ec2-mark-stop policies.yml

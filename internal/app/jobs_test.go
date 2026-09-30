@@ -40,6 +40,17 @@ func fakeCustodian(args []string) int {
 	case "version":
 		fmt.Println("0.9.52")
 		return 0
+	case "schema":
+		if len(args) > 1 && args[1] == "--json" {
+			data, err := os.ReadFile(os.Getenv("LC7N_SCHEMA"))
+			if err != nil {
+				return 2
+			}
+			_, _ = os.Stdout.Write(data)
+			return 0
+		}
+		fmt.Printf("Help\n----\n\nDocs for %s\n", args[1])
+		return 0
 	case "validate":
 		for _, f := range args[1:] {
 			if strings.Contains(f, "invalid") {
@@ -85,6 +96,11 @@ func withFakeCustodian(t *testing.T) Model {
 	}
 	t.Setenv("LC7N_FAKE_CUSTODIAN", "1")
 	t.Setenv("LC7N_FIXTURE_OUT", fixtureOut)
+	schema, err := filepath.Abs("../../tests/fixtures/real/c7n-0.9.52-schema-small.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LC7N_SCHEMA", schema)
 
 	cfg := config.Default()
 	cfg.StateDir = t.TempDir()

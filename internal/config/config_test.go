@@ -175,3 +175,14 @@ func TestStatePath(t *testing.T) {
 		t.Fatalf("state path %q", cfg.StatePath())
 	}
 }
+
+func TestThemeValues(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := Load(write(t, dir, "c.toml", "theme = \"light\"\n"), dir)
+	if err != nil || cfg.Theme != ThemeLight {
+		t.Fatalf("cfg=%v err=%v", cfg.Theme, err)
+	}
+	if _, err := Load(write(t, dir, "d.toml", "theme = \"pink\"\n"), dir); err == nil {
+		t.Fatal("unknown theme accepted")
+	}
+}

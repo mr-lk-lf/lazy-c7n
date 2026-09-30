@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -105,6 +106,22 @@ func (m Model) updatePolicies(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, k.Reload):
 		st.loading = true
 		return m, loadPolicies(m.policyPaths())
+	case key.Matches(msg, k.Edit):
+		row, ok := m.cursorRow()
+		if !ok {
+			return m, nil
+		}
+		f := st.files[row.file]
+		line := 1
+		if row.policy >= 0 {
+			line = f.Policies[row.policy].Line
+		}
+		cmd, err := editorCommand(os.Getenv("VISUAL"), os.Getenv("EDITOR"), f.Path, line)
+		if err != nil {
+			m.setError(err.Error())
+			return m, nil
+		}
+		return m, tea.ExecProcess(cmd, func(err error) tea.Msg { return editorDoneMsg{err} })
 	}
 
 	if m.focus == paneRight {

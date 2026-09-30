@@ -26,6 +26,14 @@ const (
 	RunnerCommand RunnerKind = "command"
 )
 
+type Theme string
+
+const (
+	ThemeAuto  Theme = "auto"
+	ThemeDark  Theme = "dark"
+	ThemeLight Theme = "light"
+)
+
 type ConfirmLive string
 
 // ConfirmTypeName is the only confirmation mode in v0: the user types the
@@ -38,7 +46,9 @@ type Config struct {
 	// StateDir holds run history and caches; empty = $XDG_STATE_HOME/lazyc7n.
 	StateDir string `toml:"state_dir"`
 	// KeepRuns is how many runs to keep in the history (0 = all).
-	KeepRuns int      `toml:"keep_runs"`
+	KeepRuns int `toml:"keep_runs"`
+	// Theme is "auto" (follow the terminal background), "dark" or "light".
+	Theme    Theme    `toml:"theme"`
 	Runner   Runner   `toml:"runner"`
 	Defaults Defaults `toml:"defaults"`
 	Safety   Safety   `toml:"safety"`
@@ -72,6 +82,7 @@ func Default() Config {
 	return Config{
 		PolicyDirs: []string{"./policies"},
 		KeepRuns:   200,
+		Theme:      ThemeAuto,
 		Runner: Runner{
 			Kind:      RunnerBinary,
 			Custodian: "custodian",
@@ -138,6 +149,11 @@ func (c Config) Validate() error {
 		errs = append(errs, errors.New(`safety.confirm_live: "yes-no" is not supported in this version; remove the key or set it to "type-name"`))
 	default:
 		errs = append(errs, fmt.Errorf("safety.confirm_live: unknown value %q (want type-name)", c.Safety.ConfirmLive))
+	}
+	switch c.Theme {
+	case ThemeAuto, ThemeDark, ThemeLight:
+	default:
+		errs = append(errs, fmt.Errorf("theme: unknown value %q (want auto, dark or light)", c.Theme))
 	}
 	if c.Runner.Kind == RunnerCommand && len(c.Runner.Command) == 0 {
 		errs = append(errs, errors.New(`runner.command: required when runner.kind = "command"`))

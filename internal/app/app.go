@@ -96,6 +96,7 @@ type Model struct {
 	runs     runsState
 	res      resourcesState
 	jobs     jobsState
+	schema   schemaState
 
 	quitArmed bool // q pressed once while jobs are running
 
@@ -119,7 +120,12 @@ func New(cfg config.Config, opts Options) Model {
 	m.policies.marked = map[string]bool{}
 	m.policies.loading = true
 	m.runs.loading = true
-	m.setTheme(true) // until the terminal tells us its background
+	switch cfg.Theme {
+	case config.ThemeLight:
+		m.setTheme(false)
+	case config.ThemeDark, config.ThemeAuto:
+		m.setTheme(true) // auto: until the terminal tells us its background
+	}
 	return m
 }
 
@@ -153,7 +159,9 @@ func (m *Model) setError(msg string)  { m.status, m.statusErr = msg, true }
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
-		m.setTheme(msg.IsDark())
+		if m.cfg.Theme == config.ThemeAuto {
+			m.setTheme(msg.IsDark())
+		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.help.SetWidth(msg.Width)
@@ -199,6 +207,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case jobStartedMsg, jobFailedMsg, jobOutputMsg, jobDoneMsg, jobSavedMsg:
 		return m.updateJobMsg(msg)
+	case schemaLoadedMsg:
+		m.schema.loading = false
+		m.schema.schema, m.schema.err = msg.schema, msg.err
+	case schemaHelpMsg:
+		if m.schema.help == nil {
+			m.schema.help = map[string]string{}
+		}
+		if msg.text == "" {
+			msg.text = "(no help text)"
+		}
+		m.schema.help[msg.path] = msg.text
+	case editorDoneMsg:
+		if msg.err != nil {
+			m.setError("editor: " + msg.err.Error())
+		}
+		m.policies.loading = true
+		return m, loadPolicies(m.policyPaths())
 
 	case tea.KeyPressMsg:
 		return m.updateKey(msg)
@@ -238,13 +263,13 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.quit()
 	case key.Matches(msg, m.keys.NextScreen):
 		m.switchScreen(m.screen.offset(1))
-		return m, nil
+		return m, m.ensureSchema()
 	case key.Matches(msg, m.keys.PrevScreen):
 		m.switchScreen(m.screen.offset(-1))
-		return m, nil
+		return m, m.ensureSchema()
 	case msg.Text >= "1" && msg.Text <= "5" && len(msg.Text) == 1:
 		m.switchScreen(Screens[msg.Text[0]-'1'])
-		return m, nil
+		return m, m.ensureSchema()
 	case key.Matches(msg, m.keys.Left):
 		m.focus = paneLeft
 		return m, nil
@@ -279,6 +304,7 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case ScreenJobs:
 		return m.updateJobs(msg)
 	case ScreenSchema:
+		return m.updateSchema(msg)
 	}
 	return m, nil
 }
@@ -337,6 +363,7 @@ func (m *Model) resetCursor() {
 	case ScreenJobs:
 		m.jobs.cursor = 0
 	case ScreenSchema:
+		m.schema.cursor, m.schema.item, m.schema.scroll = 0, 0, 0
 	}
 }
 

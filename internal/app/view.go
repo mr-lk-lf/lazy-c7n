@@ -82,6 +82,7 @@ func (m Model) body(width, height int) string {
 	case ScreenJobs:
 		return m.viewJobs(width, height)
 	case ScreenSchema:
+		return m.viewSchema(width, height)
 	}
 	return m.pane(m.screen.Title(), []string{m.styles.Muted.Render("not implemented yet")}, width, height, true)
 }

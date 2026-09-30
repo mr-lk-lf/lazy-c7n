@@ -9,11 +9,13 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/vstrofago/lazy-c7n/internal/app"
 	"github.com/vstrofago/lazy-c7n/internal/config"
+	"github.com/vstrofago/lazy-c7n/internal/store"
 )
 
 // version is set at release time with -ldflags "-X main.version=...".
@@ -29,6 +31,8 @@ func main() {
 func run() error {
 	configPath := flag.String("config", "", "config file to use instead of the user config + "+config.ProjectFile)
 	showVersion := flag.Bool("version", false, "print version and exit")
+	prune := flag.Bool("prune", false, "delete old runs from the history (keep_runs newest, and -prune-days) and exit")
+	pruneDays := flag.Int("prune-days", 0, "with -prune: also delete runs older than this many days")
 	var outputs listFlag
 	flag.Var(&outputs, "output", "existing c7n output dir (custodian -s) to browse in Runs; repeatable")
 	flag.Usage = func() {
@@ -56,6 +60,13 @@ func run() error {
 	}
 
 	// Bubble Tea restores the terminal on exit and on panics inside the program.
+	if *prune {
+		st := store.Store{Root: cfg.StatePath()}
+		removed, err := st.Prune(cfg.KeepRuns, time.Duration(*pruneDays)*24*time.Hour, time.Now())
+		fmt.Printf("removed %d run(s) from %s\n", len(removed), st.Root)
+		return err
+	}
+
 	opts := app.Options{PolicyPaths: flag.Args(), OutputDirs: outputs}
 	_, err = tea.NewProgram(app.New(cfg, opts)).Run()
 	return err

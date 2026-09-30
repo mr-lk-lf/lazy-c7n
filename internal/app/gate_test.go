@@ -18,9 +18,9 @@ import (
 )
 
 var (
-	ec2Stop  = c7n.Policy{Name: "ec2-stop", Resource: "aws.ec2", Actions: []string{"stop"}, File: "p.yml"}
-	s3Tag    = c7n.Policy{Name: "s3-tag", Resource: "aws.s3", Actions: []string{"tag"}, File: "p.yml"}
-	offhours = c7n.Policy{Name: "ec2-offhours", Resource: "aws.ec2", Mode: "periodic", Actions: []string{"stop"}, File: "p.yml"}
+	ec2Stop  = c7n.Policy{Name: "ec2-stop", Resource: "aws.ec2", Actions: []string{"stop"}, File: "p.yml", Line: 2}
+	s3Tag    = c7n.Policy{Name: "s3-tag", Resource: "aws.s3", Actions: []string{"tag"}, File: "p.yml", Line: 8}
+	offhours = c7n.Policy{Name: "ec2-offhours", Resource: "aws.ec2", Mode: "periodic", Actions: []string{"stop"}, File: "p.yml", Line: 14}
 )
 
 var (
@@ -56,9 +56,21 @@ func seq(parts ...any) []tea.Msg {
 	return out
 }
 
+// withSelection loads policies as one file and selects all of them.
+// Policies without a file or line get distinct ones.
 func withSelection(cfg config.Config, policies ...c7n.Policy) Model {
-	m := New(cfg)
-	m.selected = policies
+	m := New(cfg, Options{})
+	m.policies.loading = false
+	for i := range policies {
+		if policies[i].File == "" {
+			policies[i].File = "p.yml"
+		}
+		if policies[i].Line == 0 {
+			policies[i].Line = 100 + i
+		}
+		m.policies.marked[policyKey(policies[i])] = true
+	}
+	m.policies.files = []c7n.PolicyFile{{Path: "p.yml", Policies: policies}}
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	return next.(Model)
 }
@@ -166,8 +178,8 @@ func TestGate(t *testing.T) {
 			seq(liveKey, typed("ec2-offhours"), enter, esc, typed("DEPLOY"), enter), nil, false},
 		{"unknown mode needs DEPLOY too", []c7n.Policy{{Name: "x", Mode: "brand-new"}},
 			seq(liveKey, typed("x"), enter), nil, true},
-		{"policy with an empty name can never be confirmed", []c7n.Policy{{Name: ""}},
-			seq(liveKey, enter, typed(" "), enter), nil, true},
+		{"policy with an empty name is refused before the gate", []c7n.Policy{{Name: ""}},
+			seq(liveKey, enter, typed(" "), enter), nil, false},
 	}
 
 	for _, tc := range cases {
@@ -232,9 +244,12 @@ func TestRWithoutSelectionOpensNothing(t *testing.T) {
 
 // Changing the selection while the gate is open must not change what runs.
 func TestGateConfirmsWhatItShowed(t *testing.T) {
-	m, _ := drive(withSelection(config.Default(), ec2Stop), seq(liveKey))
-	m.selected = []c7n.Policy{s3Tag}
-	m.selected[0].Name = "changed"
+	m, _ := drive(withSelection(config.Default(), ec2Stop, s3Tag), seq(liveKey, typed("x"), esc))
+	m.policies.marked[policyKey(s3Tag)] = false
+	m, _ = drive(m, seq(liveKey)) // gate for ec2-stop only
+	m.policies.files[0].Policies[0].Name = "changed"
+	m.policies.marked[policyKey(ec2Stop)] = false
+	m.policies.marked[policyKey(s3Tag)] = true
 
 	_, runs := drive(m, seq(typed("s3-tag"), enter))
 	if len(runs) > 0 {
@@ -338,7 +353,8 @@ func TestGateViewFitsSmallWindowWithManyPolicies(t *testing.T) {
 	var many []c7n.Policy
 	for i := range 40 {
 		p := ec2Stop
-		p.Name = "policy-" + strings.Repeat("x", i%7)
+		p.Name = "policy-" + strings.Repeat("x", i%7) + itoa(i)
+		p.Line = 0
 		many = append(many, p)
 	}
 	m, _ := drive(withSelection(config.Default(), many...), seq(liveKey, tea.WindowSizeMsg{Width: 80, Height: 24}))

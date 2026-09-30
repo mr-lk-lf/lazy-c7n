@@ -27,13 +27,13 @@ func send(m Model, msgs ...tea.Msg) (Model, tea.Cmd) {
 func plain(m Model) string { return ansi.Strip(m.View().Content) }
 
 func TestStartsOnPolicies(t *testing.T) {
-	if s := New(config.Default()).Screen(); s != ScreenPolicies {
+	if s := New(config.Default(), Options{}).Screen(); s != ScreenPolicies {
 		t.Fatalf("screen = %v", s)
 	}
 }
 
 func TestScreensCycleBothWays(t *testing.T) {
-	m, _ := send(New(config.Default()), tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	m, _ := send(New(config.Default(), Options{}), tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 	if m.Screen() != ScreenJobs {
 		t.Fatalf("shift+tab from first: %v", m.Screen())
 	}
@@ -51,7 +51,7 @@ func TestScreensCycleBothWays(t *testing.T) {
 
 func TestQuitKeys(t *testing.T) {
 	for _, msg := range []tea.KeyPressMsg{press('q', "q"), {Code: 'c', Mod: tea.ModCtrl}} {
-		_, cmd := send(New(config.Default()), msg)
+		_, cmd := send(New(config.Default(), Options{}), msg)
 		if cmd == nil {
 			t.Fatalf("%v: no command", msg)
 		}
@@ -62,16 +62,16 @@ func TestQuitKeys(t *testing.T) {
 }
 
 func TestOtherKeysDoNothing(t *testing.T) {
-	m, cmd := send(New(config.Default()), press('x', "x"))
+	m, cmd := send(New(config.Default(), Options{}), press('x', "x"))
 	if cmd != nil || m.Screen() != ScreenPolicies {
 		t.Fatalf("unexpected effect: cmd=%v screen=%v", cmd, m.Screen())
 	}
 }
 
 func TestPoliciesScreenShowsDirsAndDryBadge(t *testing.T) {
-	m, _ := send(New(config.Default()), tea.WindowSizeMsg{Width: 90, Height: 12})
+	m, _ := send(New(config.Default(), Options{}), tea.WindowSizeMsg{Width: 90, Height: 12})
 	out := plain(m)
-	for _, want := range []string{"lazyc7n", "Policies", "./policies", "DRY", "q quit"} {
+	for _, want := range []string{"lazyc7n", "1 Policies", "5 Jobs", "DRY", "space select"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
@@ -84,13 +84,13 @@ func TestPoliciesScreenShowsDirsAndDryBadge(t *testing.T) {
 func TestLiveDefaultIsVisible(t *testing.T) {
 	cfg := config.Default()
 	cfg.Safety.DefaultDryRun = false
-	if out := plain(New(cfg)); !strings.Contains(out, "LIVE") {
+	if out := plain(New(cfg, Options{})); !strings.Contains(out, "LIVE") {
 		t.Fatalf("no LIVE badge:\n%s", out)
 	}
 }
 
 func TestViewFitsWindow(t *testing.T) {
-	m, _ := send(New(config.Default()), tea.WindowSizeMsg{Width: 70, Height: 10})
+	m, _ := send(New(config.Default(), Options{}), tea.WindowSizeMsg{Width: 70, Height: 10})
 	lines := strings.Split(plain(m), "\n")
 	if len(lines) > 10 {
 		t.Errorf("height %d > 10", len(lines))

@@ -1,13 +1,12 @@
 package app
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-
-	"github.com/vstrofago/lazy-c7n/internal/c7n"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Fallback size before the first WindowSizeMsg (and in tests).
@@ -23,46 +22,47 @@ func (m Model) View() tea.View {
 	return v
 }
 
-func (m Model) render() string {
-	w, h := m.width, m.height
-	if w <= 0 || h <= 0 {
-		w, h = defaultWidth, defaultHeight
+func (m Model) size() (int, int) {
+	if m.width <= 0 || m.height <= 0 {
+		return defaultWidth, defaultHeight
 	}
+	return m.width, m.height
+}
 
-	header := m.header()
+func (m Model) render() string {
+	w, h := m.size()
+	header := m.header(w)
 	footer := m.footer(w)
 	bodyHeight := max(h-lipgloss.Height(header)-lipgloss.Height(footer), 3)
 	return lipgloss.JoinVertical(lipgloss.Left, header, m.body(w, bodyHeight), footer)
 }
 
-func (m Model) header() string {
+func (m Model) header(width int) string {
 	parts := []string{m.styles.Brand.Render("lazyc7n"), " "}
-	for _, s := range Screens {
+	for i, s := range Screens {
 		style := m.styles.Tab
 		if s == m.screen {
 			style = m.styles.ActiveTab
 		}
-		parts = append(parts, style.Render(s.Title()))
+		parts = append(parts, style.Render(itoa(i+1)+" "+s.Title()))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+	return ansi.Truncate(lipgloss.JoinHorizontal(lipgloss.Top, parts...), width, "")
 }
 
 func (m Model) body(width, height int) string {
 	if m.gate.open() {
 		return m.gateView(width, height)
 	}
-	var lines []string
 	switch m.screen {
 	case ScreenPolicies:
-		lines = append(lines, m.styles.Muted.Render("policy dirs"))
-		for _, d := range m.cfg.PolicyDirs {
-			lines = append(lines, m.styles.Item.Render("  "+d))
-		}
-	case ScreenRuns, ScreenResources, ScreenSchema, ScreenJobs:
-		lines = append(lines, m.styles.Muted.Render("not implemented yet"))
+		return m.viewPolicies(width, height)
+	case ScreenRuns:
+		return m.viewRuns(width, height)
+	case ScreenResources:
+		return m.viewResources(width, height)
+	case ScreenSchema, ScreenJobs:
 	}
-	content := m.styles.PaneTitle.Render(m.screen.Title()) + "\n\n" + strings.Join(lines, "\n")
-	return m.styles.Pane.Width(width).Height(height).Render(content)
+	return m.pane(m.screen.Title(), []string{m.styles.Muted.Render("not implemented yet")}, width, height, true)
 }
 
 func (m Model) footer(width int) string {
@@ -72,151 +72,119 @@ func (m Model) footer(width int) string {
 	}
 	left := lipgloss.JoinHorizontal(lipgloss.Top,
 		badge,
-		m.styles.Status.Render(" runner: "+m.cfg.Runner.Custodian+"  "),
+		m.styles.Status.Render(" "+m.runnerLabel()+"  "),
 	)
 	if m.gate.open() {
 		// The gate shows its own keys; the normal ones do not apply.
 		return left
 	}
 	m.help.SetWidth(max(width-lipgloss.Width(left), 0))
-	footer := lipgloss.JoinHorizontal(lipgloss.Top, left, m.help.View(m.keys))
-	if m.status != "" {
-		footer = m.styles.Status.Render(m.status) + "\n" + footer
+	footer := lipgloss.JoinHorizontal(lipgloss.Top, left, m.help.View(screenHelp{m.keys, m.screen}))
+
+	var top string
+	switch {
+	case m.filtering:
+		top = m.styles.Input.Render("/" + m.filters[m.screen] + "█")
+	case m.status != "" && m.statusErr:
+		top = m.styles.StatusError.Render(m.status)
+	case m.status != "":
+		top = m.styles.Status.Render(m.status)
+	}
+	if top != "" {
+		footer = ansi.Truncate(top, width, "…") + "\n" + footer
 	}
 	return footer
 }
 
-// gateView renders the live-run confirmation in place of the screen body.
-func (m Model) gateView(width, height int) string {
-	g := m.gate
-	s := m.styles
-	req := g.req
-	var lines []string
+func (m Model) runnerLabel() string {
+	return "runner: " + m.cfg.Runner.Custodian
+}
 
-	title := "LIVE RUN"
-	if g.step == gateDeploy {
-		title = "DEPLOYS INFRASTRUCTURE"
+// twoPanes lays out a list on the left and details on the right.
+func (m Model) twoPanes(leftTitle string, left []string, rightTitle string, right []string, width, height int) string {
+	lw := leftWidth(width)
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		m.pane(leftTitle, left, lw, height, m.focus == paneLeft),
+		m.pane(rightTitle, right, width-lw, height, m.focus == paneRight),
+	)
+}
+
+// pane draws a bordered box of exactly width x height with a title line.
+// Lines longer than the box are cut.
+func (m Model) pane(title string, lines []string, width, height int, focused bool) string {
+	style := m.styles.Pane
+	if focused {
+		style = m.styles.FocusedPane
 	}
-	lines = append(lines, s.Danger.Render(fmt.Sprintf("%s · step %d/%d", title, stepNumber(g.step), g.totalSteps())))
+	inner := max(width-4, 1)
+	rows := max(height-2, 1)
+	out := make([]string, 0, rows)
+	out = append(out, ansi.Truncate(m.styles.PaneTitle.Render(title), inner, "…"))
+	for _, l := range lines {
+		if len(out) == rows {
+			break
+		}
+		out = append(out, ansi.Truncate(l, inner, "…"))
+	}
+	for len(out) < rows {
+		out = append(out, "")
+	}
+	return style.Width(width).Height(height).Render(strings.Join(out, "\n"))
+}
 
-	var body []c7n.Policy
-	var tail []string
-	switch g.step {
-	case gateClosed:
-		return ""
-	case gateConfirm:
-		lines = append(lines, s.Item.Render("This will change real resources, with your current credentials."))
-		if len(req.Argv) > 0 {
-			lines = append(lines, s.Muted.Render("$ "+strings.Join(req.Argv, " ")))
-		}
-		lines = append(lines, s.Muted.Render("backend: "+string(m.cfg.Runner.Kind)), "")
-		body = req.Policies
+// paneRows is how many content lines fit in a pane of the given height
+// (border and title removed).
+func paneRows(height int) int { return max(height-3, 1) }
 
-		var destructive []string
-		n := 0
-		for _, p := range req.Policies {
-			if d := p.DestructiveActions(); len(d) > 0 {
-				destructive = append(destructive, d...)
-				n++
-			}
+// windowStart keeps the cursor in view, roughly centred.
+func windowStart(cursor, n, rows int) int {
+	if n <= rows {
+		return 0
+	}
+	return min(max(cursor-rows/2, 0), n-rows)
+}
+
+// listLines renders the visible part of a list with the cursor row
+// highlighted across the pane width.
+func (m Model) listLines(rows []string, cursor, visible, width int, focused bool) []string {
+	start := windowStart(cursor, len(rows), visible)
+	end := min(start+visible, len(rows))
+	inner := max(width-4, 1)
+	out := make([]string, 0, end-start)
+	for i := start; i < end; i++ {
+		if i != cursor {
+			out = append(out, rows[i])
+			continue
 		}
-		if n > 0 {
-			tail = append(tail, "", s.Danger.Render(fmt.Sprintf("!! %d %s DESTRUCTIVE actions: %s",
-				n, plural(n, "policy has", "policies have"), strings.Join(uniq(destructive), ", "))))
-		}
-		if len(req.Policies) == 1 {
-			tail = append(tail, "", s.Item.Render("Type the policy name to run it live: "+g.expected()))
+		text := ansi.Truncate(ansi.Strip(rows[i]), inner, "…")
+		text += strings.Repeat(" ", max(inner-ansi.StringWidth(text), 0))
+		if focused {
+			out = append(out, m.styles.Cursor.Render(text))
 		} else {
-			tail = append(tail, "", s.Item.Render(fmt.Sprintf("Type %s (the number of policies) to run them live:", g.expected())))
-		}
-	case gateDeploy:
-		lines = append(lines,
-			s.Item.Render("These policies are not mode: pull. A live run does NOT evaluate resources now:"),
-			s.Item.Render("it creates or updates a Lambda function and its trigger in your account."),
-			"")
-		body = req.NonPull()
-		tail = append(tail, "", s.Item.Render("Type "+deployWord+" to continue:"))
-	}
-
-	tail = append(tail, s.Input.Render("> "+g.typed+"█"))
-	if g.mismatch {
-		tail = append(tail, s.Danger.Render("does not match, nothing was run; try again"))
-	}
-	tail = append(tail, s.Muted.Render("enter confirm · esc cancel"))
-
-	// Room left for the policy list: body height minus the border (2), the
-	// lines above and below, and one spare line for the mismatch message.
-	room := height - 2 - len(lines) - len(tail)
-	if !g.mismatch {
-		room--
-	}
-	lines = append(lines, m.gatePolicyRows(g.step, body, room)...)
-	lines = append(lines, tail...)
-	return s.GatePane.Width(width).Height(height).Render(strings.Join(lines, "\n"))
-}
-
-// gatePolicyRows lists policies in at most maxRows lines, the last one
-// saying how many were left out.
-func (m Model) gatePolicyRows(step gateStep, policies []c7n.Policy, maxRows int) []string {
-	maxRows = max(maxRows, 1)
-	shown := policies
-	if len(policies) > maxRows {
-		shown = policies[:maxRows-1]
-	}
-	nameW, resW := 0, 0
-	for _, p := range shown {
-		nameW = max(nameW, len(p.Name))
-		resW = max(resW, len(p.Resource))
-	}
-	var rows []string
-	for _, p := range shown {
-		rows = append(rows, m.gatePolicyRow(step, p, nameW, resW))
-	}
-	if len(shown) < len(policies) {
-		rows = append(rows, m.styles.Muted.Render(fmt.Sprintf("  … and %d more (all %d will run)",
-			len(policies)-len(shown), len(policies))))
-	}
-	return rows
-}
-
-func (m Model) gatePolicyRow(step gateStep, p c7n.Policy, nameW, resW int) string {
-	switch step {
-	case gateClosed, gateConfirm:
-	case gateDeploy:
-		return m.styles.Warn.Render(fmt.Sprintf("  %-*s  mode: %s", nameW, p.Name, p.Mode))
-	}
-	actions := "no actions (report only)"
-	if len(p.Actions) > 0 {
-		actions = "actions: " + strings.Join(p.Actions, ", ")
-	}
-	row := fmt.Sprintf("  %-*s  %-*s  %s", nameW, p.Name, resW, p.Resource, actions)
-	switch {
-	case !p.IsPull():
-		return m.styles.Warn.Render(row + "  [mode " + p.Mode + ": deploys Lambda]")
-	case len(p.DestructiveActions()) > 0:
-		return m.styles.Danger.Render(row + "  [destructive]")
-	}
-	return m.styles.Item.Render(row)
-}
-
-func stepNumber(s gateStep) int {
-	switch s {
-	case gateClosed, gateConfirm:
-		return 1
-	case gateDeploy:
-		return 2
-	}
-	return 0
-}
-
-func uniq(in []string) []string {
-	var out []string
-	seen := map[string]bool{}
-	for _, s := range in {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
+			out = append(out, m.styles.CursorDim.Render(text))
 		}
 	}
 	return out
 }
+
+// leftWidth mirrors twoPanes, for lists that need their pane width.
+func leftWidth(width int) int {
+	lw := min(max(width*2/5, 24), 64)
+	if width-lw < 20 {
+		lw = width / 2
+	}
+	return lw
+}
+
+// scrolled returns lines[scroll : scroll+rows], with scroll clamped.
+func scrolled(lines []string, scroll, rows int) []string {
+	scroll = min(max(scroll, 0), max(len(lines)-rows, 0))
+	return lines[scroll:min(scroll+rows, len(lines))]
+}
+
+// scrollBy moves a scroll offset, keeping it within content of n lines.
+func scrollBy(scroll, delta, n, rows int) int {
+	return min(max(scroll+delta, 0), max(n-rows, 0))
+}
+
+func itoa(n int) string { return strconv.Itoa(n) }

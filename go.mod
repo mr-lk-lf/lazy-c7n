@@ -9,6 +9,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/adrg/xdg v0.5.3
 	github.com/charmbracelet/x/ansi v0.11.8
+	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (

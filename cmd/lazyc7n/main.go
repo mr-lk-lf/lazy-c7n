@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -28,11 +29,14 @@ func main() {
 func run() error {
 	configPath := flag.String("config", "", "config file to use instead of the user config + "+config.ProjectFile)
 	showVersion := flag.Bool("version", false, "print version and exit")
+	var outputs listFlag
+	flag.Var(&outputs, "output", "existing c7n output dir (custodian -s) to browse in Runs; repeatable")
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(),
 			"lazyc7n: a terminal UI for the Cloud Custodian (custodian) CLI.\n"+
 				"Independent project; not affiliated with Cloud Custodian or the CNCF.\n\n"+
-				"Usage: lazyc7n [flags]\n\n")
+				"Usage: lazyc7n [flags] [policy files or dirs...]\n\n"+
+				"Policy paths given as arguments replace policy_dirs from the config.\n\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -52,7 +56,8 @@ func run() error {
 	}
 
 	// Bubble Tea restores the terminal on exit and on panics inside the program.
-	_, err = tea.NewProgram(app.New(cfg)).Run()
+	opts := app.Options{PolicyPaths: flag.Args(), OutputDirs: outputs}
+	_, err = tea.NewProgram(app.New(cfg, opts)).Run()
 	return err
 }
 
@@ -64,4 +69,14 @@ func buildVersion() string {
 		return info.Main.Version
 	}
 	return "dev"
+}
+
+// listFlag is a flag that can be given several times.
+type listFlag []string
+
+func (l *listFlag) String() string { return strings.Join(*l, ",") }
+
+func (l *listFlag) Set(v string) error {
+	*l = append(*l, v)
+	return nil
 }

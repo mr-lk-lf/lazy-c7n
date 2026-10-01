@@ -1,0 +1,1 @@
+custodian report -s scenarios/dryrun/out --format csv -p ec2-mark-stop policies.yml

@@ -16,9 +16,9 @@ import (
 // Spec is one custodian invocation. Paths are host paths; the docker
 // backend maps them into the container.
 type Spec struct {
-	Subcommand  string // "run", "validate", "version" or "schema"
+	Subcommand  string // "run", "validate", "report", "version" or "schema"
 	DryRun      bool
-	OutDir      string // run: -s
+	OutDir      string // run, report: -s
 	Cache       string // run: -f
 	CachePeriod string // run: --cache-period (minutes)
 	Regions     []string
@@ -72,6 +72,12 @@ func identity(p string) string { return p }
 // host path to the path custodian will see.
 func custodianArgs(s Spec, path func(string) string) []string {
 	args := []string{s.Subcommand}
+	if s.Subcommand == "report" {
+		args = append(args, "-s", path(s.OutDir), "--format", "csv")
+		for _, p := range s.Policies {
+			args = append(args, "-p", p)
+		}
+	}
 	if s.Subcommand == "run" {
 		args = append(args, "-s", path(s.OutDir))
 		if s.Cache != "" {
@@ -155,7 +161,7 @@ func dockerArgv(cfg config.Runner, s Spec, host Host) ([]string, error) {
 		mount(dir, fmt.Sprintf("%s/%d", containerPolicies, i), true)
 		fileMap[f] = mounts[dir] + "/" + filepath.Base(a)
 	}
-	if s.Subcommand == "run" {
+	if s.Subcommand == "run" || s.Subcommand == "report" {
 		out, err := abs(s.OutDir)
 		if err != nil {
 			return nil, err

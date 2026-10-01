@@ -17,7 +17,7 @@ Scenarios: `validate-ok`, `validate-invalid`, `dryrun`, `dryrun-glob` (`-p 's3-*
 `dryrun-multiregion` (`-r` twice), `live` (actions executed against the emulator),
 `live-periodic` (non-pull mode without `--dryrun`: provisions a Lambda; moto rejects the role
 and exits 2, Floci completes it with the EventBridge rule and exits 0),
-`dryrun-api-error` (unreachable endpoint), `report-json`.
+`dryrun-api-error` (unreachable endpoint), `report-json`, `report-csv` (c7n's default report columns for the resource type).
 
 Scrubbing: absolute paths are replaced with `<repo>`, `<work>` and `~`. Account id,
 bucket owners and instance ids are the emulator's fake values. If you capture against

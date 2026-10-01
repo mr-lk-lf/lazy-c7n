@@ -68,6 +68,9 @@ lazy-c7n shells out; it never links c7n code.
 
 The backend is an abstraction (`trait Runner`) so a **fake runner** can be used in tests (§11).
 
+### Report (styled resource view)
+`custodian report -s <dir> --format csv -p <policy> <file>` prints c7n's default report fields for the resource type (e.g. `aws.ec2`: InstanceId, tag:Name, InstanceType, LaunchTime, VpcId, PrivateIpAddress; `aws.s3`: Name, CreationDate) **[verified c7n 0.9.52]**. It reads `<dir>/<policy>/resources.json` and works offline. `-s` is the directory that contains the policy dir (`<out>` or `<out>/<region>`). lazy-c7n writes the policy recorded in `metadata.json` to a temporary JSON policy file, so any output dir can be reported, even without its original policy file. Fixture: `tests/fixtures/real/*/report-csv/`.
+
 ### c7n output layout (what we read back)
 With `-s <out>` c7n writes one sub-directory per policy **[verified c7n 0.9.52]**:
 
@@ -95,13 +98,13 @@ Layout: lazygit-style panes. Left column = lists, right = detail/preview, bottom
 |---|---|---|
 | **Policies** | tree: policy dir → files → policies, fuzzy filter `/` | YAML (syntax-highlighted), summary: resource, mode, filters, **actions (mutating ones highlighted)** |
 | **Runs** | history (newest first): time, policy, dry/live, status, matched count | run detail: metadata, resources table, log tab, command line used |
-| **Resources** | matched resources of selected run | pretty JSON of selected resource, tags |
+| **Resources** | (full width, top) table of the matched resources with the columns c7n itself chooses for the resource type (`custodian report --format csv`) | (full width, bottom) card of the selected resource: report fields, tags, `c7n:MatchedFilters`; `t` switches to the raw JSON |
 | **Schema** | resource types → filters/actions | help text and JSON schema from `custodian schema` |
 | **Jobs** | running/queued jobs | live streaming stdout/stderr |
 
 Keys as implemented (M1–M4): `Tab`/`Shift+Tab` or `1`–`5` switch screen; `h`/`l` (or arrows) switch pane; `j`/`k`, `g`/`G`, `PgUp`/`PgDn` move or scroll; `Enter` open; `Esc` back (clears the filter first, then the selection on Policies); `/` fuzzy filter of the left list; `?` all keys; `q` quit (asks again while jobs run; `Ctrl+C` always quits, interrupting running jobs).
 Policies: `Space` select (on a file row: all its policies), `v` validate, `d` dry-run, `R` live run (gated, Policies screen only), `e` open in `$EDITOR` at the policy's line, `y` copy the dry-run command, `r` reload. Actions apply to the selected policies, or else to the policy (or file) under the cursor.
-Runs: `Enter` policy table → resources, `t` toggle the per-policy log, `y` copy the command, `r` reload. Resources: `y` copy the resource id. Jobs: `x` cancel (interrupt, kill after 5 s). Schema: `Enter` browse / load help, `r` re-run `custodian schema --json`.
+Runs: `Enter` policy table → resources, `t` toggle the per-policy log, `y` copy the command, `r` reload. Resources: `t` card/JSON, `y` copy the resource id. Anywhere: `T` next colour theme (for trying them; the config keeps the choice). Jobs: `x` cancel (interrupt, kill after 5 s). Schema: `Enter` browse / load help, `r` re-run `custodian schema --json`.
 
 ## 5. Data model and state
 
@@ -112,7 +115,8 @@ No database. Plain files only.
   policy_dirs = ["./policies"]  # replaced by policy paths given as arguments
   state_dir = ""             # empty = $XDG_STATE_HOME/lazyc7n
   keep_runs = 200            # run history retention (0 = keep all)
-  theme = "auto"             # auto | dark | light
+  theme = "lazyc7n"          # lazyc7n | terminal | catppuccin | gruvbox | everforest | tokyonight | dracula
+  appearance = "auto"        # auto (follow the terminal background) | dark | light
   [runner]
   kind = "binary"            # binary | docker | command
   custodian = "custodian"    # or path / venv

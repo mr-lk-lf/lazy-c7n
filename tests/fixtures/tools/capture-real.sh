@@ -63,6 +63,7 @@ scenario live-periodic     run "${CACHE[@]}" -s out -p s3-periodic policies.yml
 AWS_ENDPOINT_URL=http://127.0.0.1:9 \
 scenario dryrun-api-error  run -f "$WORK/c7n-down.cache" --dryrun -s out -p ec2-none-match policies.yml
 scenario report-json       report -s scenarios/dryrun/out --format json -p s3-untagged-owner policies.yml
+scenario report-csv        report -s scenarios/dryrun/out --format csv -p ec2-mark-stop policies.yml
 
 # Scrub machine-specific paths.
 grep -rlZ -e "$ROOT" -e "$WORK" -e "$HOME" scenarios 2>/dev/null | xargs -0 -r sed -i \

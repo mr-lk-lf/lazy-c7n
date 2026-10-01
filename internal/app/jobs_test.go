@@ -40,6 +40,13 @@ func fakeCustodian(args []string) int {
 	case "version":
 		fmt.Println("0.9.52")
 		return 0
+	case "report":
+		data, err := os.ReadFile(os.Getenv("LC7N_REPORT_CSV"))
+		if err != nil {
+			return 2
+		}
+		_, _ = os.Stdout.Write(data)
+		return 0
 	case "schema":
 		if len(args) > 1 && args[1] == "--json" {
 			data, err := os.ReadFile(os.Getenv("LC7N_SCHEMA"))
@@ -86,27 +93,32 @@ func fakeCustodian(args []string) int {
 	return 2
 }
 
+// useFakeCustodian points m's runner at the fake custodian.
+func useFakeCustodian(t *testing.T, m *Model) {
+	t.Helper()
+	abs := func(p string) string {
+		a, err := filepath.Abs(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+	t.Setenv("LC7N_FAKE_CUSTODIAN", "1")
+	t.Setenv("LC7N_FIXTURE_OUT", abs(fixtures+"/dryrun/out"))
+	t.Setenv("LC7N_SCHEMA", abs("../../tests/fixtures/real/c7n-0.9.52-schema-small.json"))
+	t.Setenv("LC7N_REPORT_CSV", abs(fixtures+"/report-csv/stdout.txt"))
+	m.cfg.Runner.Kind = config.RunnerCommand
+	m.cfg.Runner.Command = []string{os.Args[0], "-test.run=^TestFakeCustodian$", "--"}
+}
+
 // withFakeCustodian returns a model whose runner is the fake custodian,
 // with the fixture policies loaded and a temporary state dir.
 func withFakeCustodian(t *testing.T) Model {
 	t.Helper()
-	fixtureOut, err := filepath.Abs(fixtures + "/dryrun/out")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("LC7N_FAKE_CUSTODIAN", "1")
-	t.Setenv("LC7N_FIXTURE_OUT", fixtureOut)
-	schema, err := filepath.Abs("../../tests/fixtures/real/c7n-0.9.52-schema-small.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("LC7N_SCHEMA", schema)
-
 	cfg := config.Default()
 	cfg.StateDir = t.TempDir()
-	cfg.Runner.Kind = config.RunnerCommand
-	cfg.Runner.Command = []string{os.Args[0], "-test.run=^TestFakeCustodian$", "--"}
 	m := New(cfg, Options{PolicyPaths: []string{fixtures + "/policies.yml", fixtures + "/invalid.yml"}})
+	useFakeCustodian(t, &m)
 	m, _ = send(m, tea.WindowSizeMsg{Width: 120, Height: 30}, loadPolicies(m.policyPaths())())
 	return m
 }

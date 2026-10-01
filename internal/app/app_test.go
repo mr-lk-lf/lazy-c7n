@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/vstrofago/lazy-c7n/internal/config"
+	"github.com/vstrofago/lazy-c7n/internal/ui"
 )
 
 func press(code rune, text string) tea.KeyPressMsg {
@@ -98,6 +99,32 @@ func TestViewFitsWindow(t *testing.T) {
 	for i, l := range lines {
 		if w := ansi.StringWidth(l); w > 70 {
 			t.Errorf("line %d width %d > 70: %q", i, w, l)
+		}
+	}
+}
+
+func TestThemeKeyCycles(t *testing.T) {
+	m := New(config.Default(), Options{})
+	m, _ = send(m, press('T', "T"))
+	if m.theme != "terminal" || !strings.Contains(m.status, `theme = "terminal"`) {
+		t.Fatalf("theme=%q status=%q", m.theme, m.status)
+	}
+	for range len(ui.ThemeNames) - 1 {
+		m, _ = send(m, press('T', "T"))
+	}
+	if m.theme != "lazyc7n" {
+		t.Fatalf("did not wrap: %q", m.theme)
+	}
+}
+
+func TestEveryThemeRenders(t *testing.T) {
+	for _, name := range ui.ThemeNames {
+		for _, appearance := range []config.Appearance{config.AppearanceDark, config.AppearanceLight} {
+			cfg := config.Default()
+			cfg.Theme, cfg.Appearance = name, appearance
+			if out := plain(New(cfg, Options{})); !strings.Contains(out, "1 Policies") {
+				t.Errorf("%s/%s:\n%s", name, appearance, out)
+			}
 		}
 	}
 }

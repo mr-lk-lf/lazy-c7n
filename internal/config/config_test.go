@@ -178,11 +178,14 @@ func TestStatePath(t *testing.T) {
 
 func TestThemeValues(t *testing.T) {
 	dir := t.TempDir()
-	cfg, err := Load(write(t, dir, "c.toml", "theme = \"light\"\n"), dir)
-	if err != nil || cfg.Theme != ThemeLight {
-		t.Fatalf("cfg=%v err=%v", cfg.Theme, err)
+	cfg, err := Load(write(t, dir, "c.toml", "theme = \"gruvbox\"\nappearance = \"light\"\n"), dir)
+	if err != nil || cfg.Theme != "gruvbox" || cfg.Appearance != AppearanceLight {
+		t.Fatalf("cfg=%v/%v err=%v", cfg.Theme, cfg.Appearance, err)
 	}
-	if _, err := Load(write(t, dir, "d.toml", "theme = \"pink\"\n"), dir); err == nil {
-		t.Fatal("unknown theme accepted")
+	if _, err := Load(write(t, dir, "d.toml", "theme = \"pink\"\n"), dir); err == nil || !strings.Contains(err.Error(), "catppuccin") {
+		t.Fatalf("unknown theme: %v", err)
+	}
+	if _, err := Load(write(t, dir, "e.toml", "appearance = \"dim\"\n"), dir); err == nil {
+		t.Fatal("unknown appearance accepted")
 	}
 }

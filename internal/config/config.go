@@ -10,9 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/adrg/xdg"
+
+	"github.com/vstrofago/lazy-c7n/internal/ui"
 )
 
 // ProjectFile is the project-local override file, looked up in the cwd.
@@ -26,12 +29,12 @@ const (
 	RunnerCommand RunnerKind = "command"
 )
 
-type Theme string
+type Appearance string
 
 const (
-	ThemeAuto  Theme = "auto"
-	ThemeDark  Theme = "dark"
-	ThemeLight Theme = "light"
+	AppearanceAuto  Appearance = "auto"
+	AppearanceDark  Appearance = "dark"
+	AppearanceLight Appearance = "light"
 )
 
 type ConfirmLive string
@@ -47,11 +50,14 @@ type Config struct {
 	StateDir string `toml:"state_dir"`
 	// KeepRuns is how many runs to keep in the history (0 = all).
 	KeepRuns int `toml:"keep_runs"`
-	// Theme is "auto" (follow the terminal background), "dark" or "light".
-	Theme    Theme    `toml:"theme"`
-	Runner   Runner   `toml:"runner"`
-	Defaults Defaults `toml:"defaults"`
-	Safety   Safety   `toml:"safety"`
+	// Theme is a colour theme name (see ui.ThemeNames).
+	Theme string `toml:"theme"`
+	// Appearance picks the theme's dark or light variant: "auto" follows
+	// the terminal background.
+	Appearance Appearance `toml:"appearance"`
+	Runner     Runner     `toml:"runner"`
+	Defaults   Defaults   `toml:"defaults"`
+	Safety     Safety     `toml:"safety"`
 }
 
 type Runner struct {
@@ -82,7 +88,8 @@ func Default() Config {
 	return Config{
 		PolicyDirs: []string{"./policies"},
 		KeepRuns:   200,
-		Theme:      ThemeAuto,
+		Theme:      "lazyc7n",
+		Appearance: AppearanceAuto,
 		Runner: Runner{
 			Kind:      RunnerBinary,
 			Custodian: "custodian",
@@ -150,10 +157,13 @@ func (c Config) Validate() error {
 	default:
 		errs = append(errs, fmt.Errorf("safety.confirm_live: unknown value %q (want type-name)", c.Safety.ConfirmLive))
 	}
-	switch c.Theme {
-	case ThemeAuto, ThemeDark, ThemeLight:
+	if !ui.HasTheme(c.Theme) {
+		errs = append(errs, fmt.Errorf("theme: unknown theme %q (want one of %s)", c.Theme, strings.Join(ui.ThemeNames, ", ")))
+	}
+	switch c.Appearance {
+	case AppearanceAuto, AppearanceDark, AppearanceLight:
 	default:
-		errs = append(errs, fmt.Errorf("theme: unknown value %q (want auto, dark or light)", c.Theme))
+		errs = append(errs, fmt.Errorf("appearance: unknown value %q (want auto, dark or light)", c.Appearance))
 	}
 	if c.Runner.Kind == RunnerCommand && len(c.Runner.Command) == 0 {
 		errs = append(errs, errors.New(`runner.command: required when runner.kind = "command"`))

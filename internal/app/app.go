@@ -79,6 +79,7 @@ type Model struct {
 	width  int
 	height int
 	styles ui.Styles
+	theme  string // current theme name (T cycles it)
 	keys   keyMap
 	help   help.Model
 
@@ -120,17 +121,18 @@ func New(cfg config.Config, opts Options) Model {
 	m.policies.marked = map[string]bool{}
 	m.policies.loading = true
 	m.runs.loading = true
-	switch cfg.Theme {
-	case config.ThemeLight:
+	m.theme = cfg.Theme
+	switch cfg.Appearance {
+	case config.AppearanceLight:
 		m.setTheme(false)
-	case config.ThemeDark, config.ThemeAuto:
+	case config.AppearanceDark, config.AppearanceAuto:
 		m.setTheme(true) // auto: until the terminal tells us its background
 	}
 	return m
 }
 
 func (m *Model) setTheme(dark bool) {
-	m.styles = ui.NewStyles(dark)
+	m.styles = ui.NewStyles(m.theme, dark)
 	m.help.Styles = help.DefaultStyles(dark)
 }
 
@@ -159,7 +161,7 @@ func (m *Model) setError(msg string)  { m.status, m.statusErr = msg, true }
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
-		if m.cfg.Theme == config.ThemeAuto {
+		if m.cfg.Appearance == config.AppearanceAuto {
 			m.setTheme(msg.IsDark())
 		}
 	case tea.WindowSizeMsg:
@@ -196,6 +198,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.dir == m.res.pr.Dir {
 			m.res.loading = false
 			m.res.list, m.res.err = msg.resources, msg.err
+		}
+	case reportLoadedMsg:
+		if msg.dir == m.res.pr.Dir {
+			m.res.reportLoading = false
+			m.res.report, m.res.reportErr = msg.report, msg.err
 		}
 	case logLoadedMsg:
 		m.runs.log = msg
@@ -278,6 +285,11 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, m.keys.Help):
 		m.help.ShowAll = !m.help.ShowAll
+		return m, nil
+	case key.Matches(msg, m.keys.Theme):
+		m.theme = ui.NextTheme(m.theme)
+		m.setTheme(m.styles.Dark)
+		m.setStatus(`theme: ` + m.theme + ` · to keep it, set theme = "` + m.theme + `" in your config`)
 		return m, nil
 	case key.Matches(msg, m.keys.Filter) && m.focus == paneLeft:
 		m.filtering = true

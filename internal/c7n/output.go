@@ -32,8 +32,9 @@ type PolicyRun struct {
 	// not write resources.json (policy error, or a live non-pull run).
 	ResourceCount int
 	APICalls      map[string]int
-	ActionFiles   []string // action-<name> files, without the prefix
-	LogHasError   bool     // custodian-run.log mentions an error
+	ActionFiles   []string        // action-<name> files, without the prefix
+	LogHasError   bool            // custodian-run.log mentions an error
+	Spec          json.RawMessage // the policy as c7n loaded it (metadata.json "policy")
 }
 
 // Status is a one-word summary for lists.
@@ -127,6 +128,12 @@ func readPolicyDir(dir, region string) PolicyRun {
 
 	var md metadata
 	if data, err := os.ReadFile(filepath.Join(dir, "metadata.json")); err == nil {
+		var spec struct {
+			Policy json.RawMessage `json:"policy"`
+		}
+		if json.Unmarshal(data, &spec) == nil {
+			r.Spec = spec.Policy
+		}
 		if json.Unmarshal(data, &md) == nil {
 			if md.Policy.Name != "" {
 				r.Policy = md.Policy.Name

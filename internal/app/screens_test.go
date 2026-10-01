@@ -127,17 +127,27 @@ func TestRunsAndResources(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
+	useFakeCustodian(t, &m)
 	m, cmd := send(m, enter) // ec2-mark-stop is first in the table
 	if m.Screen() != ScreenResources || cmd == nil {
 		t.Fatalf("screen=%v cmd=%v", m.Screen(), cmd)
 	}
-	m, _ = send(m, cmd())
+	m = settle(t, m, cmd)
 	out = plain(m)
-	for _, want := range []string{"ec2-mark-stop · us-east-1 · 2", "i-", `"Architecture": "x86_64"`} {
+	// A table with c7n's report columns, and a card of the first resource.
+	for _, want := range []string{"ec2-mark-stop · us-east-1 · aws.ec2 · 2", "InstanceId", "InstanceType", "t3.micro", "i-", "vpc-default-us-east-1", "t json"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
+	if m.res.report == nil || len(m.res.report.Rows) != 2 {
+		t.Fatalf("report = %+v (err %q)", m.res.report, m.res.reportErr)
+	}
+	m, _ = send(m, press('t', "t"))
+	if out := plain(m); !strings.Contains(out, `"Architecture": "x86_64"`) || !strings.Contains(out, "t card") {
+		t.Errorf("no JSON view:\n%s", out)
+	}
+	m, _ = send(m, press('t', "t"))
 
 	// esc goes back to the run.
 	m, _ = send(m, esc)
@@ -164,5 +174,28 @@ func TestNoPoliciesFound(t *testing.T) {
 	m, _ = send(m, loadPolicies(m.policyPaths())())
 	if out := plain(m); !strings.Contains(out, "no policy files found") {
 		t.Fatalf("no hint:\n%s", out)
+	}
+}
+
+func TestResourcesWithoutReport(t *testing.T) {
+	m := loaded(t)
+	m.cfg.Runner.Custodian = "/no/such/custodian"
+	m, _ = send(m, press('2', "2"))
+	for i, r := range m.runs.list {
+		if len(r.Policies) == 4 {
+			m.runs.cursor = i
+		}
+	}
+	m, _ = send(m, enter)
+	m, cmd := send(m, enter)
+	m = settle(t, m, cmd)
+	if m.res.reportErr == "" {
+		t.Fatal("report did not fail")
+	}
+	out := plain(m)
+	for _, want := range []string{"no report", "id", "tags", "i-", "Architecture", "x86_64"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
 	}
 }

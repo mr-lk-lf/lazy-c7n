@@ -8,7 +8,7 @@ type keyMap struct {
 	NextScreen, PrevScreen, Screens         key.Binding
 	Enter, Back, Filter, Mark, Toggle       key.Binding
 	Reload, Validate, DryRun, LiveRun       key.Binding
-	Edit, Copy, Cancel                      key.Binding
+	Edit, Copy, Cancel, Theme               key.Binding
 	Help, Quit                              key.Binding
 }
 
@@ -40,6 +40,7 @@ func defaultKeys() keyMap {
 		Edit:       b([]string{"e"}, "e", "edit"),
 		Copy:       b([]string{"y"}, "y", "copy command"),
 		Cancel:     b([]string{"x"}, "x", "cancel job"),
+		Theme:      b([]string{"T"}, "T", "next theme"),
 		Help:       b([]string{"?"}, "?", "more keys"),
 		Quit:       b([]string{"q"}, "q", "quit"),
 	}
@@ -85,5 +86,5 @@ func (h screenHelp) FullHelp() [][]key.Binding {
 	case ScreenJobs:
 		actions = []key.Binding{k.Cancel}
 	}
-	return [][]key.Binding{nav, panes, actions, {k.Help, k.Quit}}
+	return [][]key.Binding{nav, panes, actions, {k.Theme, k.Help, k.Quit}}
 }

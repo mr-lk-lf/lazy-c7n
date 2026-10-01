@@ -22,7 +22,7 @@ go build ./cmd/lazyc7n
 ./lazyc7n -prune                         # trim the run history and exit
 ```
 
-Screens: `1` Policies · `2` Runs · `3` Resources · `4` Schema · `5` Jobs. On Policies: `space` select, `v` validate, `d` dry-run, `R` live run, `e` edit, `/` filter. `?` shows every key.
+Screens: `1` Policies · `2` Runs · `3` Resources · `4` Schema · `5` Jobs. On Policies: `space` select, `v` validate, `d` dry-run, `R` live run, `e` edit, `/` filter. Resources shows c7n's report columns as a table and a card per resource (`t` for raw JSON). `T` cycles colour themes (lazyc7n, terminal, catppuccin, gruvbox, everforest, tokyonight, dracula). `?` shows every key.
 
 Configuration: `$XDG_CONFIG_HOME/lazyc7n/config.toml`, overridden by `./.lazyc7n.toml` (see [`docs/SPEC.md` §5](docs/SPEC.md)).
 

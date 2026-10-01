@@ -26,6 +26,7 @@ For the user (Spanish, with an opening prompt to paste): `docs/NEXT-STEPS.txt`.
 - **M3** live runs: the gate freezes the exact spec; `startLiveRun` (only called on approval) starts it. `c7n.Select` refuses selections where custodian's `-p` globs would run more than what was chosen.
 - **M4** Schema browser (cached `schema --json`, help per action/filter), `e` → `$EDITOR` at the line, `-prune`, `theme`.
 - Everything checked end-to-end against Floci from the TUI (binary and docker backends): dry-runs, a live `mark-for-op` (tags appear), a live `periodic` policy (Lambda + EventBridge deployed, status `deployed`).
+- After M4 (PM requests, 2026-10-01): colour themes (`theme` + `appearance`, `T` cycles; lazyc7n, terminal = ANSI palette of the terminal, catppuccin, gruvbox, everforest, tokyonight, dracula, each with light/dark variants except dracula) and a styled Resources view built on `custodian report --format csv` (table with c7n's default columns + resource card; raw JSON on `t`).
 - Work is on branch `tui-m0-m4` (pushed, not merged to `main`).
 - Tests: `go test -race ./...` green; lint clean; cross-builds for Windows/macOS. Gate mutation-checked (see commit messages).
 

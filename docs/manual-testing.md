@@ -38,7 +38,9 @@ Recursos de demo: 3 buckets S3 (uno con `owner`), 3 instancias EC2 (2 con `owner
 - [ ] Runs lista los dry-runs (DRY, ✓, nº de policies y recursos), el más nuevo arriba.
 - [ ] `Enter` → tabla de policies con estado `ok` y nº de recursos.
 - [ ] `t` muestra el log de la policy; `t` otra vez vuelve.
-- [ ] `Enter` sobre una policy → Resources: ids (`i-…`, nombres de bucket, `vol-…`), tags y JSON coloreado.
+- [ ] `Enter` sobre una policy → Resources: arriba una tabla con las columnas del report de c7n (en EC2: InstanceId, Name, InstanceType, LaunchTime, VpcId, IP); abajo la ficha del recurso (campos, edad, tags, "matched by").
+- [ ] `t` cambia la ficha por el JSON coloreado y vuelta.
+- [ ] Un run de un directorio `-output` también muestra la tabla (no necesita el fichero de policy original).
 - [ ] `Esc` vuelve a Runs.
 
 ## 4. Confirmación live (lo más importante)
@@ -70,4 +72,5 @@ Y ahora sí, contra Floci:
 - [ ] `q` con un job en marcha pide confirmación; `q` otra vez sale.
 - [ ] `scripts/floci-dev.sh --docker`: lo mismo pero con el backend docker (la barra inferior dice `docker: cloudcustodian/c7n`).
 - [ ] `lazyc7n -prune` dice cuántos runs borró.
-- [ ] Tema claro: `theme = "light"` en la config.
+- [ ] `T` va cambiando de tema (lazyc7n, terminal, catppuccin, gruvbox, everforest, tokyonight, dracula); el rojo sigue siendo "peligro" y el verde "dry-run" en todos.
+- [ ] `theme = "catppuccin"` + `appearance = "light"` en la config arranca con Catppuccin Latte.

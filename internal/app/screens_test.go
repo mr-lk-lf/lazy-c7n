@@ -1,8 +1,10 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -246,4 +248,31 @@ func TestRunSummaryDestructive(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
+}
+
+// Thousands of resources must keep the screen responsive: one full render
+// (table + card) well under a frame budget on a slow CI machine.
+func TestResourcesScreenScales(t *testing.T) {
+	m := loaded(t)
+	const n = c7n.MaxResources
+	rep := &c7n.Report{Columns: []string{"CustodianDate", "InstanceId", "InstanceType"}}
+	for i := range n {
+		id := fmt.Sprintf("i-%06d", i)
+		m.res.list = append(m.res.list, c7n.Resource{ID: id, Raw: []byte(`{"InstanceId":"` + id + `"}`)})
+		rep.Rows = append(rep.Rows, []string{"2026-10-01 00:00:00.000000", id, "t3.micro"})
+	}
+	m.res.pr = c7n.PolicyRun{Policy: "p", Dir: "/x", Resource: "aws.ec2"}
+	m.res.total, m.res.report = 25000, rep
+	m.res.indexReport()
+	m.screen = ScreenResources
+
+	start := time.Now()
+	out := plain(m)
+	if d := time.Since(start); d > 500*time.Millisecond {
+		t.Fatalf("render took %v", d)
+	}
+	if !strings.Contains(out, "showing the first 10000 of 25000") || !strings.Contains(out, "i-000000") {
+		t.Fatalf("view:\n%s", out)
+	}
+	t.Logf("render of %d resources: %v", n, time.Since(start))
 }

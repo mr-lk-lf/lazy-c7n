@@ -22,11 +22,15 @@ func TestParseRealReportCSV(t *testing.T) {
 		t.Fatalf("columns %v rows %d", r.Columns, len(r.Rows))
 	}
 
-	res, _ := ReadResources(filepath.Join(realFixtures, "dryrun", "out", "ec2-mark-stop", "resources.json"), "aws.ec2")
+	res, _, _ := ReadResources(filepath.Join(realFixtures, "dryrun", "out", "ec2-mark-stop", "resources.json"), "aws.ec2", MaxResources)
 	// Rows are matched by id, whatever their order.
 	row, ok := r.RowFor(res[1], 0)
 	if !ok || row[1] != res[1].ID {
 		t.Fatalf("row for %s = %v", res[1].ID, row)
+	}
+	idx := r.Index([]Resource{res[1], res[0], {ID: "nope"}})
+	if r.Rows[idx[0]][1] != res[1].ID || r.Rows[idx[1]][1] != res[0].ID || idx[2] != -1 {
+		t.Fatalf("index %v", idx)
 	}
 	if _, ok := r.RowFor(Resource{ID: "nope"}, 9); ok {
 		t.Fatal("found a row for an unknown resource")

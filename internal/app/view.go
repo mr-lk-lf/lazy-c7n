@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -94,7 +95,8 @@ func (m Model) footer(width int) string {
 	}
 	left := lipgloss.JoinHorizontal(lipgloss.Top,
 		badge,
-		m.styles.Status.Render(" "+m.runnerLabel()+"  "),
+		m.styles.Bold.Render(" "+m.cloud),
+		m.styles.Status.Render(" · "+m.runnerLabel()+"  "),
 	)
 	if m.gate.open() {
 		// The gate shows its own keys; the normal ones do not apply.
@@ -121,11 +123,11 @@ func (m Model) footer(width int) string {
 func (m Model) runnerLabel() string {
 	switch m.cfg.Runner.Kind {
 	case config.RunnerBinary:
-		return "binary: " + m.cfg.Runner.Custodian
+		return filepath.Base(m.cfg.Runner.Custodian)
 	case config.RunnerCommand:
-		return "command: " + strings.Join(m.cfg.Runner.Command, " ")
+		return strings.Join(m.cfg.Runner.Command, " ")
 	case config.RunnerDocker:
-		return "docker: " + m.cfg.Runner.Image
+		return "docker " + m.cfg.Runner.Image
 	}
 	return string(m.cfg.Runner.Kind)
 }

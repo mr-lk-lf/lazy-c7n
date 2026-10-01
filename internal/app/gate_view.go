@@ -29,6 +29,7 @@ func (m Model) gateView(width, height int) string {
 		return ""
 	case gateConfirm:
 		lines = append(lines, s.Item.Render("This will change real resources, with your current credentials."))
+		lines = append(lines, s.Bold.Render("target: "+m.cloud))
 		if len(req.Argv) > 0 {
 			cmd := wrapped(s.Muted, "$ "+strings.Join(req.Argv, " "), width-4)
 			if len(cmd) > 3 {

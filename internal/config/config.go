@@ -15,6 +15,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/adrg/xdg"
 
+	"github.com/vstrofago/lazy-c7n/internal/c7n"
 	"github.com/vstrofago/lazy-c7n/internal/ui"
 )
 
@@ -80,6 +81,9 @@ type Defaults struct {
 type Safety struct {
 	DefaultDryRun bool        `toml:"default_dry_run"`
 	ConfirmLive   ConfirmLive `toml:"confirm_live"`
+	// Actions reclassifies action types (e.g. custom plugin actions).
+	// Built-in destructive actions can never be made less severe.
+	Actions c7n.ActionOverrides `toml:"actions"`
 }
 
 // Default returns the built-in configuration. It is the safe baseline:
@@ -164,6 +168,9 @@ func (c Config) Validate() error {
 	case AppearanceAuto, AppearanceDark, AppearanceLight:
 	default:
 		errs = append(errs, fmt.Errorf("appearance: unknown value %q (want auto, dark or light)", c.Appearance))
+	}
+	if err := c.Safety.Actions.Check(); err != nil {
+		errs = append(errs, err)
 	}
 	if c.Runner.Kind == RunnerCommand && len(c.Runner.Command) == 0 {
 		errs = append(errs, errors.New(`runner.command: required when runner.kind = "command"`))

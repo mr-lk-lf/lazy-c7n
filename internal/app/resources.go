@@ -28,14 +28,24 @@ type resourcesState struct {
 	runTitle string
 	loading  bool
 	list     []c7n.Resource
+	total    int // resources in resources.json (list may hold fewer)
 	err      error
 	cursor   int
 	scroll   int // detail pane
 	showJSON bool
 
 	report        *c7n.Report
+	rowOf         []int // report row of each resource in list (-1: none)
 	reportLoading bool
 	reportErr     string
+}
+
+// indexReport matches resources to report rows once both have loaded.
+func (st *resourcesState) indexReport() {
+	st.rowOf = nil
+	if st.report != nil && st.list != nil {
+		st.rowOf = st.report.Index(st.list)
+	}
 }
 
 type reportLoadedMsg struct {
@@ -110,7 +120,10 @@ func (m Model) cells(i int) []string {
 	if len(cols) == 0 {
 		return []string{r.ID, itoa(len(r.Tags))}
 	}
-	row, _ := m.res.report.RowFor(r, i)
+	var row []string
+	if i < len(m.res.rowOf) && m.res.rowOf[i] >= 0 {
+		row = m.res.report.Rows[m.res.rowOf[i]]
+	}
 	out := make([]string, len(cols))
 	for j, c := range cols {
 		if c < len(row) {
@@ -136,7 +149,13 @@ func (m Model) headers() []string {
 // matches the whole row and the tags.
 func (m Model) resourceRows() []int {
 	filter := m.filters[ScreenResources]
-	var rows []int
+	rows := make([]int, 0, len(m.res.list))
+	if filter == "" {
+		for i := range m.res.list {
+			rows = append(rows, i)
+		}
+		return rows
+	}
 	for i, r := range m.res.list {
 		text := strings.Join(m.cells(i), " ")
 		for _, t := range r.Tags {
@@ -251,7 +270,11 @@ func (m Model) viewResources(width, height int) string {
 	case len(st.list) == 0:
 		lines = []string{s.Muted.Render("no resources matched")}
 	default:
-		title += fmt.Sprintf(" · %d", len(st.list))
+		if st.total > len(st.list) {
+			title += fmt.Sprintf(" · showing the first %d of %d", len(st.list), st.total)
+		} else {
+			title += fmt.Sprintf(" · %d", len(st.list))
+		}
 		switch {
 		case st.reportLoading:
 			title += " · loading report…"
@@ -280,19 +303,37 @@ func (m Model) resourceTable(inner, visible int) []string {
 	s := m.styles
 	headers := m.headers()
 	rows := m.resourceRows()
-	all := make([][]string, len(rows))
+	// Only the visible rows are built. Column widths come from them and the
+	// first rows of the list, so they stay stable while scrolling.
+	page := max(visible-1, 1)
+	start := windowStart(m.res.cursor, len(rows), page)
+	end := min(start+page, len(rows))
+	cellsOf := func(idx int) []string {
+		cells := m.cells(idx)
+		for j, c := range cells {
+			cells[j] = shortValue(c)
+		}
+		return cells
+	}
 	widths := make([]int, len(headers))
 	for j, h := range headers {
 		widths[j] = ansi.StringWidth(h)
 	}
-	for i, idx := range rows {
-		all[i] = m.cells(idx)
-		for j, c := range all[i] {
-			all[i][j] = shortValue(c)
+	measure := func(cells []string) {
+		for j, c := range cells {
 			if j < len(widths) {
-				widths[j] = max(widths[j], ansi.StringWidth(all[i][j]))
+				widths[j] = max(widths[j], ansi.StringWidth(c))
 			}
 		}
+	}
+	for _, idx := range rows[:min(len(rows), 200)] {
+		measure(cellsOf(idx))
+	}
+	all := make([][]string, 0, end-start)
+	for _, idx := range rows[start:end] {
+		cells := cellsOf(idx)
+		measure(cells)
+		all = append(all, cells)
 	}
 	const gap = 2
 	shown, used := 0, 0
@@ -337,7 +378,7 @@ func (m Model) resourceTable(inner, visible int) []string {
 	if len(body) == 0 {
 		body = []string{s.Muted.Render("nothing matches the filter")}
 	}
-	return append([]string{header}, m.listLines(body, m.res.cursor, max(visible-1, 1), inner+4, m.focus == paneLeft)...)
+	return append([]string{header}, m.listLines(body, m.res.cursor-start, page, inner+4, m.focus == paneLeft)...)
 }
 
 // timeLayouts are the timestamp shapes found in c7n reports.
@@ -395,11 +436,14 @@ func (m Model) resourceDetail() []string {
 	// Key fields: the report row, or else the resource's top-level scalars.
 	var keys, values []string
 	if cols := m.reportColumns(); len(cols) > 0 {
-		row, _ := m.res.report.RowFor(r, m.indexOf(r))
-		for _, c := range cols {
-			if c < len(row) && row[c] != r.ID {
+		row := m.cells(m.indexOf(r))
+		for j, c := range cols {
+			if j >= len(row) {
+				break
+			}
+			if row[j] != r.ID {
 				keys = append(keys, m.res.report.Columns[c])
-				values = append(values, row[c])
+				values = append(values, row[j])
 			}
 		}
 	} else {

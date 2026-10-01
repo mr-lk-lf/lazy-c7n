@@ -49,6 +49,32 @@ func (r Report) RowFor(res Resource, index int) ([]string, bool) {
 	return nil, false
 }
 
+// Index maps each resource to its report row (as RowFor does), in one
+// pass, for long lists. -1 means no row.
+func (r Report) Index(resources []Resource) []int {
+	byCell := map[string]int{}
+	for i, row := range r.Rows {
+		for _, cell := range row {
+			if _, seen := byCell[cell]; cell != "" && !seen {
+				byCell[cell] = i
+			}
+		}
+	}
+	out := make([]int, len(resources))
+	for i, res := range resources {
+		row, ok := byCell[res.ID]
+		switch {
+		case ok:
+			out[i] = row
+		case i < len(r.Rows):
+			out[i] = i
+		default:
+			out[i] = -1
+		}
+	}
+	return out
+}
+
 // WriteReportPolicy writes the policy recorded in pr's metadata.json as a
 // policy file in dir, for `custodian report`, which needs the policy (any
 // output dir can be reported this way, even without its original file).

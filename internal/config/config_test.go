@@ -189,3 +189,15 @@ func TestThemeValues(t *testing.T) {
 		t.Fatal("unknown appearance accepted")
 	}
 }
+
+func TestActionOverrides(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := Load(write(t, dir, "c.toml", "[safety.actions]\ndestructive = [\"invoke-lambda\"]\nnotify = [\"slack-notify\"]\n"), dir)
+	if err != nil || len(cfg.Safety.Actions.Destructive) != 1 || cfg.Safety.Actions.Notify[0] != "slack-notify" {
+		t.Fatalf("cfg=%+v err=%v", cfg.Safety.Actions, err)
+	}
+	_, err = Load(write(t, dir, "d.toml", "[safety.actions]\nnotify = [\"delete\"]\n"), dir)
+	if err == nil || !strings.Contains(err.Error(), "cannot be made less severe") {
+		t.Fatalf("downgrade of delete: %v", err)
+	}
+}

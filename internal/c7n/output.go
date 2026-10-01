@@ -1,6 +1,7 @@
 package c7n
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -180,11 +181,11 @@ func countResources(path string, md metadata) int {
 			return int(m.Value)
 		}
 	}
-	res, err := ReadResources(path, "")
+	_, total, err := ReadResources(path, "", 0)
 	if err != nil {
 		return -1
 	}
-	return len(res)
+	return total
 }
 
 func epoch(sec float64) time.Time {
@@ -218,24 +219,60 @@ func (r Resource) Pretty() string {
 	return b.String()
 }
 
-// ReadResources loads resources.json. resourceType (e.g. "aws.ec2") picks
-// the id field; it may be empty.
-func ReadResources(path, resourceType string) ([]Resource, error) {
-	data, err := os.ReadFile(path)
+// MaxResources is how many resources the Resources screen loads; bigger
+// results are counted but not kept in memory.
+const MaxResources = 10000
+
+// ReadResources streams resources.json and keeps the first limit
+// resources (limit 0: only count them). total is the number in the file.
+// resourceType (e.g. "aws.ec2") picks the id field; it may be empty.
+func ReadResources(path, resourceType string, limit int) (res []Resource, total int, err error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	var raws []json.RawMessage
-	if err := json.Unmarshal(data, &raws); err != nil {
-		return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
+	defer func() { _ = f.Close() }()
+	fail := func(err error) ([]Resource, int, error) {
+		return nil, 0, fmt.Errorf("%s: %w", filepath.Base(path), err)
 	}
-	out := make([]Resource, 0, len(raws))
-	for _, raw := range raws {
-		var fields map[string]any
-		_ = json.Unmarshal(raw, &fields) // non-objects just get no id
-		out = append(out, Resource{ID: resourceID(resourceType, fields), Raw: raw, Tags: resourceTags(fields)})
+
+	dec := json.NewDecoder(bufio.NewReaderSize(f, 1<<20))
+	if tok, err := dec.Token(); err != nil {
+		return fail(err)
+	} else if d, ok := tok.(json.Delim); !ok || d != '[' {
+		return fail(errors.New("not a JSON list"))
 	}
-	return out, nil
+	for dec.More() {
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return fail(err)
+		}
+		total++
+		if len(res) < limit {
+			res = append(res, newResource(resourceType, raw))
+		}
+	}
+	if _, err := dec.Token(); err != nil { // the closing ]: catches truncated files
+		return fail(err)
+	}
+	return res, total, nil
+}
+
+// newResource reads only the top level of a resource: enough for its id
+// and tags, cheap even for big resources.
+func newResource(resourceType string, raw json.RawMessage) Resource {
+	var fields map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &fields) // non-objects just get no id
+	return Resource{ID: resourceID(resourceType, fields), Raw: raw, Tags: resourceTags(fields)}
+}
+
+// str is a field's value if it is a string.
+func str(fields map[string]json.RawMessage, key string) string {
+	var v string
+	if raw, ok := fields[key]; ok && json.Unmarshal(raw, &v) == nil {
+		return v
+	}
+	return ""
 }
 
 // idFields maps resource types to the field that identifies them. Types not
@@ -273,7 +310,7 @@ var idFields = map[string]string{
 
 var fallbackIDFields = []string{"id", "Id", "ID", "name", "Name", "Arn", "arn", "selfLink"}
 
-func resourceID(resourceType string, fields map[string]any) string {
+func resourceID(resourceType string, fields map[string]json.RawMessage) string {
 	if fields == nil {
 		return "?"
 	}
@@ -281,12 +318,12 @@ func resourceID(resourceType string, fields map[string]any) string {
 		resourceType = "aws." + resourceType // c7n also accepts "ec2" for "aws.ec2"
 	}
 	if f, ok := idFields[resourceType]; ok {
-		if v, ok := fields[f].(string); ok && v != "" {
+		if v := str(fields, f); v != "" {
 			return v
 		}
 	}
 	for _, f := range fallbackIDFields {
-		if v, ok := fields[f].(string); ok && v != "" {
+		if v := str(fields, f); v != "" {
 			return v
 		}
 	}
@@ -298,7 +335,7 @@ func resourceID(resourceType string, fields map[string]any) string {
 	sort.Strings(keys)
 	for _, suffix := range []string{"Id", "Name", "Arn"} {
 		for _, k := range keys {
-			if v, ok := fields[k].(string); ok && v != "" && strings.HasSuffix(k, suffix) {
+			if v := str(fields, k); v != "" && strings.HasSuffix(k, suffix) {
 				return v
 			}
 		}
@@ -308,19 +345,17 @@ func resourceID(resourceType string, fields map[string]any) string {
 
 // resourceTags reads AWS-style Tags ([{Key, Value}]) or map-style tags /
 // labels (Azure, GCP).
-func resourceTags(fields map[string]any) []Tag {
+func resourceTags(fields map[string]json.RawMessage) []Tag {
 	var tags []Tag
-	if list, ok := fields["Tags"].([]any); ok {
+	var list []struct{ Key, Value string }
+	if raw, ok := fields["Tags"]; ok && json.Unmarshal(raw, &list) == nil {
 		for _, t := range list {
-			if m, ok := t.(map[string]any); ok {
-				k, _ := m["Key"].(string)
-				v, _ := m["Value"].(string)
-				tags = append(tags, Tag{k, v})
-			}
+			tags = append(tags, Tag{t.Key, t.Value})
 		}
 	}
 	for _, key := range []string{"tags", "labels"} {
-		if m, ok := fields[key].(map[string]any); ok {
+		var m map[string]any
+		if raw, ok := fields[key]; ok && json.Unmarshal(raw, &m) == nil {
 			for k, v := range m {
 				s, _ := v.(string)
 				tags = append(tags, Tag{k, s})

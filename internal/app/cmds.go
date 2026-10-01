@@ -119,6 +119,7 @@ func loadRuns(st store.Store, outputDirs []string) tea.Cmd {
 type resourcesLoadedMsg struct {
 	dir       string
 	resources []c7n.Resource
+	total     int // resources in the file; more than len(resources) when capped
 	err       error
 }
 
@@ -127,8 +128,8 @@ func loadResources(pr c7n.PolicyRun) tea.Cmd {
 		if pr.ResourceCount < 0 {
 			return resourcesLoadedMsg{dir: pr.Dir, err: errors.New("no resources.json: " + noResourcesReason(pr))}
 		}
-		res, err := c7n.ReadResources(pr.ResourcesPath(), pr.Resource)
-		return resourcesLoadedMsg{dir: pr.Dir, resources: res, err: err}
+		res, total, err := c7n.ReadResources(pr.ResourcesPath(), pr.Resource, c7n.MaxResources)
+		return resourcesLoadedMsg{dir: pr.Dir, resources: res, total: total, err: err}
 	}
 }
 

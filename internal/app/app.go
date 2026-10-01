@@ -69,6 +69,9 @@ type Options struct {
 	PolicyPaths []string
 	// OutputDirs are existing c7n output dirs (-s) to show in Runs.
 	OutputDirs []string
+	// Environ is the environment custodian will inherit (os.Environ()),
+	// read only for the account/region shown in the status bar.
+	Environ []string
 }
 
 type Model struct {
@@ -89,6 +92,7 @@ type Model struct {
 
 	store store.Store
 	host  runner.Host
+	cloud string // account/region context, see cloudContext
 
 	version    string // custodian version, once known
 	versionErr string
@@ -116,6 +120,7 @@ func New(cfg config.Config, opts Options) Model {
 		filters: map[Screen]string{},
 	}
 	m.store = store.Store{Root: cfg.StatePath()}
+	m.cloud = cloudContext(opts.Environ, cfg.Defaults.Region)
 	m.host = runner.CurrentHost()
 	m.policies.collapsed = map[string]bool{}
 	m.policies.marked = map[string]bool{}
@@ -197,12 +202,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case resourcesLoadedMsg:
 		if msg.dir == m.res.pr.Dir {
 			m.res.loading = false
-			m.res.list, m.res.err = msg.resources, msg.err
+			m.res.list, m.res.total, m.res.err = msg.resources, msg.total, msg.err
+			m.res.indexReport()
 		}
 	case reportLoadedMsg:
 		if msg.dir == m.res.pr.Dir {
 			m.res.reportLoading = false
 			m.res.report, m.res.reportErr = msg.report, msg.err
+			m.res.indexReport()
 		}
 	case logLoadedMsg:
 		m.runs.log = msg

@@ -399,3 +399,32 @@ func TestLiveRunOnlyFromPolicies(t *testing.T) {
 		t.Fatal("ran from the Runs screen")
 	}
 }
+
+// Actions made destructive in the config are flagged by the gate; the
+// confirmation itself does not change.
+func TestGateUsesConfiguredActionClasses(t *testing.T) {
+	if err := c7n.SetActionOverrides(c7n.ActionOverrides{Destructive: []string{"tag"}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c7n.SetActionOverrides(c7n.ActionOverrides{}) })
+
+	m, _ := drive(withSelection(config.Default(), s3Tag), seq(liveKey))
+	if out := plain(m); !strings.Contains(out, "DESTRUCTIVE actions: tag") || !strings.Contains(out, "[destructive]") {
+		t.Fatalf("tag not flagged:\n%s", out)
+	}
+	if _, runs := drive(m, seq(enter)); len(runs) > 0 {
+		t.Fatal("ran without the name")
+	}
+	if _, runs := drive(m, seq(typed("s3-tag"), enter)); len(runs) != 1 {
+		t.Fatal("name did not run")
+	}
+}
+
+func TestGateShowsTarget(t *testing.T) {
+	m := withSelection(config.Default(), ec2Stop)
+	m.cloud = cloudContext([]string{"AWS_PROFILE=prod", "AWS_REGION=eu-west-1"}, "")
+	m, _ = drive(m, seq(liveKey))
+	if out := plain(m); !strings.Contains(out, "target: aws profile prod · eu-west-1") {
+		t.Fatalf("no target:\n%s", out)
+	}
+}

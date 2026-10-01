@@ -1,0 +1,28 @@
+# Publishes a GitHub release when a version tag is pushed:
+#   git tag v0.1.0-alpha.1 && git push origin v0.1.0-alpha.1
+# Archives for Linux/macOS/Windows (amd64, arm64), .deb/.rpm/.apk and
+# checksums.txt (used by install.sh). Tags with -alpha/-beta/-rc are marked
+# as pre-releases.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the changelog needs the history
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - run: go run github.com/goreleaser/goreleaser/v2@v2.18.2 release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

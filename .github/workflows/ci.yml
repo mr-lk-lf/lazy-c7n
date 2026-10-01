@@ -40,3 +40,13 @@ jobs:
         if: runner.os == 'Windows'
         run: go test ./...
       - run: go build ./cmd/lazyc7n
+
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      # Known vulnerabilities in the code we actually call (modules and Go).
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

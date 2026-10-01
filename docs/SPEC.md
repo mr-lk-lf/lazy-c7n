@@ -102,6 +102,8 @@ Layout: lazygit-style panes. Left column = lists, right = detail/preview, bottom
 | **Schema** | resource types → filters/actions | help text and JSON schema from `custodian schema` |
 | **Jobs** | running/queued jobs | live streaming stdout/stderr |
 
+Status bar: DRY/LIVE badge, then the target read from the environment (names and ids only, never secrets): AWS profile or "env keys" or "default credentials", region (the configured default region wins, since lazyc7n passes it as `-r`), custom `AWS_ENDPOINT_URL` host (emulators), Azure subscription, GCP project; then the runner. The live-run gate repeats it as "target: …".
+
 Keys as implemented (M1–M4): `Tab`/`Shift+Tab` or `1`–`5` switch screen; `h`/`l` (or arrows) switch pane; `j`/`k`, `g`/`G`, `PgUp`/`PgDn` move or scroll; `Enter` open; `Esc` back (clears the filter first, then the selection on Policies); `/` fuzzy filter of the left list; `?` all keys; `q` quit (asks again while jobs run; `Ctrl+C` always quits, interrupting running jobs).
 Policies: `Space` select (on a file row: all its policies), `v` validate, `d` dry-run, `R` live run (gated, Policies screen only), `e` open in `$EDITOR` at the policy's line, `y` copy the dry-run command, `r` reload. Actions apply to the selected policies, or else to the policy (or file) under the cursor.
 Runs: `Enter` policy table → resources, `t` toggle the per-policy log, `y` copy the command, `r` reload. Resources: `t` card/JSON, `y` copy the resource id. Anywhere: `T` next colour theme (for trying them; the config keeps the choice). Jobs: `x` cancel (interrupt, kill after 5 s). Schema: `Enter` browse / load help, `r` re-run `custodian schema --json`.
@@ -130,6 +132,10 @@ No database. Plain files only.
   [safety]
   default_dry_run = true     # changing this to false is allowed but shows a warning
   confirm_live = "type-name" # only value in v0; "yes-no" is rejected at startup (PM decision 2026-09-30)
+  [safety.actions]           # reclassify action types (e.g. plugin actions); see §6.3
+  destructive = []           # e.g. ["invoke-lambda"]
+  mutating = []
+  notify = []                # e.g. ["my-slack-notify"]; built-in destructive actions are refused here
   ```
 - **State dir** (`$XDG_STATE_HOME/lazyc7n/`):
   ```
@@ -151,7 +157,7 @@ No database. Plain files only.
    - *destructive*: `terminate`, `delete`, `delete-*`, `stop`, `detach`, `release`, `deregister`, `disable`, `disassociate`, `suspend`, `pause`, `reboot`, `cancel`, `revoke-access`, `schedule-deletion`, `trim-versions`, `remove-*` (except `remove-tag`)
    - *notify-only*: `notify`, `post-finding`, `post-item`, `put-metric`, `webhook`, `no-op`
    - *mutating*: everything else (`tag`, `mark-for-op`, `modify-*`, `set-*`, `invoke-lambda`, …). Unknown action types are **mutating** (fail closed).
-   - Overriding these lists from the config: not in v0 (planned for M3).
+   - Overrides from the config (`[safety.actions]`): any action can be made stricter; a built-in destructive action can never be listed as mutating or notify (refused at startup, so the gate's destructive warnings cannot be switched off); an action may appear in one list only.
 4. **Confirmation gate** for live runs (`internal/app/gate.go`, tests in `gate_test.go`; PM decisions 2026-09-30):
    - `R` opens a full-body red dialog listing each policy (name, resource, actions, `[destructive]`, `[mode X: deploys Lambda]`), the exact command line (once the runner exists), the backend, and a red `!! N policies have DESTRUCTIVE actions: …` line when relevant.
    - The user types, exactly (case-sensitive, surrounding spaces ignored): the **policy name** for one policy, the **number of policies** (e.g. `3`) for several. `ALL` was rejected: typing the number forces looking at the list.
@@ -210,7 +216,7 @@ Key design rules:
 - **M3 — Live run**: safety model §6 complete, preflight + typed confirmation, non-pull-mode handling.
 - **M4 — Schema browser & polish**: schema cache, fuzzy search, `$EDITOR` integration, theming, docker/command backends, prune command.
 - Status (2026-09-30): **M0–M4 implemented** on branch `tui-m0-m4`, tested end-to-end against Floci with the binary and docker backends. Not released.
-- **M5 — Release**: GoReleaser binaries for Linux/macOS/Windows (amd64/arm64), `go install github.com/vstrofago/lazy-c7n/cmd/lazyc7n@latest`, Homebrew tap, AUR, Scoop/winget; demo GIF (vhs), docs site optional.
+- **M5 — Release** (tooling ready on `tui-m0-m4`, nothing published yet; see `docs/RELEASING.md`): GoReleaser config validated with a local snapshot (6 binaries, .deb/.rpm/.apk, checksums), release workflow on `v*` tags, `install.sh` (checksum-verified, no sudo), `lazyc7n version`. Original plan: GoReleaser binaries for Linux/macOS/Windows (amd64/arm64), `go install github.com/vstrofago/lazy-c7n/cmd/lazyc7n@latest`, Homebrew tap, AUR, Scoop/winget; demo GIF (vhs), docs site optional.
 
 Post-1.0 ideas (not committed): diff between two runs of the same policy, export to CSV/JSON, reading from S3 output (`s3://`), Azure/GCP polish, a `lazyc7n run` headless mode.
 

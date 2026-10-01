@@ -28,6 +28,8 @@ For the user (Spanish, with an opening prompt to paste): `docs/NEXT-STEPS.txt`.
 - Everything checked end-to-end against Floci from the TUI (binary and docker backends): dry-runs, a live `mark-for-op` (tags appear), a live `periodic` policy (Lambda + EventBridge deployed, status `deployed`).
 - After M4 (PM requests, 2026-10-01): colour themes (`theme` + `appearance`, `T` cycles; lazyc7n, terminal = ANSI palette of the terminal, catppuccin, gruvbox, everforest, tokyonight, dracula, each with light/dark variants except dracula) and a styled Resources view built on `custodian report --format csv` (table with c7n's default columns + resource card; raw JSON on `t`).
 - Run summary in Runs (`c7n.Summarize`): matches per type/region, matches hit by destructive / changing actions, failed and deployed policies; ⚠ in the run list; ACTIONS column.
+- 2026-10-01: `lazyc7n version`; `[safety.actions]` overrides (stricter only for built-in destructive); streamed `resources.json` capped at 10,000 (render of 10k rows ~3 ms); target context (profile/region/endpoint) in the status bar and gate; release tooling (GoReleaser validated with a snapshot, release workflow on tags, checksum-verified `install.sh`, govulncheck in CI, Dependabot, third-party licences in archives). See `docs/RELEASING.md`.
+- Dependencies (2026-10-01): 21 modules compiled in, all MIT / BSD-3 / (yaml) MIT+Apache-2.0, no cgo, no network or crypto code. govulncheck could not reach vuln.go.dev from the dev container; it now runs in CI.
 - Work is on branch `tui-m0-m4` (pushed, not merged to `main`).
 - Tests: `go test -race ./...` green; lint clean; cross-builds for Windows/macOS. Gate mutation-checked (see commit messages).
 

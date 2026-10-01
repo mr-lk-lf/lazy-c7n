@@ -4,6 +4,19 @@ A terminal UI for the [Cloud Custodian](https://cloudcustodian.io/) CLI, in the 
 
 > **Status: pre-alpha, not released.** Browsing, validate, dry-run, live runs (behind a typed confirmation), run history and the schema browser work; tested against local AWS emulators only. See [`docs/SPEC.md`](docs/SPEC.md).
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/vstrofago/lazy-c7n/main/install.sh | sh
+```
+
+The script downloads the release for your OS/CPU (Linux, macOS; amd64, arm64), checks it against the release's `checksums.txt` and installs it to `~/.local/bin` (no sudo). Other ways:
+
+- `go install github.com/vstrofago/lazy-c7n/cmd/lazyc7n@latest`
+- download a `.tar.gz` / `.zip` / `.deb` / `.rpm` / `.apk` from [Releases](https://github.com/vstrofago/lazy-c7n/releases) (`sudo dpkg -i lazyc7n_*.deb`)
+
+lazyc7n runs the Cloud Custodian CLI, which you install separately: `pip install c7n` (plus `c7n_azure`, `c7n_gcp`… for other clouds), or set `runner.kind = "docker"` to use the `cloudcustodian/c7n` image. `lazyc7n version` shows both versions.
+
 ## Try it (no cloud account needed)
 
 ```sh

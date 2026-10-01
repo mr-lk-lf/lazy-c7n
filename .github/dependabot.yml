@@ -1,0 +1,14 @@
+# Weekly pull requests for outdated Go modules and GitHub Actions.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      charm:
+        patterns: ["charm.land/*", "github.com/charmbracelet/*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

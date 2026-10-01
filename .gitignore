@@ -8,3 +8,4 @@
 .venv-emu/
 # real c7n output captured locally may contain account data; commit only scrubbed fixtures
 /tests/fixtures/real-unscrubbed/
+THIRD_PARTY_LICENSES.md

@@ -70,7 +70,15 @@ Y ahora sí, contra Floci:
 - [ ] `/aws.ec2` + `Enter`, `Enter` → acciones (coloreadas) y filtros.
 - [ ] `Enter` sobre una acción carga su ayuda; se ve también el JSON schema.
 
-## 6. Otros
+## 6. Contexto, versión y clasificación
+
+- [ ] La barra inferior muestra a qué apunta: con `scripts/floci-dev.sh` debe decir `aws env keys · us-east-1 · endpoint localhost:4566`; con `AWS_PROFILE=prod` delante, `aws profile prod`.
+- [ ] El diálogo live repite esa línea como "target: …".
+- [ ] `lazyc7n version` muestra la versión de lazyc7n y la de custodian (o por qué no lo encuentra).
+- [ ] En la config, `[safety.actions]` con `destructive = ["tag"]`: `s3-untagged-owner` sale en rojo y el diálogo live avisa de DESTRUCTIVE.
+- [ ] `[safety.actions]` con `notify = ["delete"]`: lazyc7n no arranca y explica que una acción destructiva no se puede rebajar.
+
+## 7. Otros
 
 - [ ] `q` con un job en marcha pide confirmación; `q` otra vez sale.
 - [ ] `scripts/floci-dev.sh --docker`: lo mismo pero con el backend docker (la barra inferior dice `docker: cloudcustodian/c7n`).

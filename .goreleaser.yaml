@@ -1,0 +1,64 @@
+# GoReleaser: builds the release archives, checksums and Linux packages.
+# Try it locally without publishing:  goreleaser release --snapshot --clean
+version: 2
+
+project_name: lazyc7n
+
+before:
+  hooks:
+    - scripts/third-party-licenses.sh
+
+builds:
+  - id: lazyc7n
+    main: ./cmd/lazyc7n
+    binary: lazyc7n
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }} -X main.date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # install.sh relies on this name: lazyc7n_<version>_<os>_<arch>.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE-MIT
+      - LICENSE-APACHE
+      - THIRD_PARTY_LICENSES.md
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - id: packages
+    package_name: lazyc7n
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: lazy-c7n
+    homepage: https://github.com/vstrofago/lazy-c7n
+    maintainer: lazy-c7n maintainers <noreply@github.com>
+    description: Terminal UI for the Cloud Custodian (custodian) CLI. Independent project, not affiliated with Cloud Custodian or the CNCF.
+    license: MIT OR Apache-2.0
+    formats: [deb, rpm, apk]
+    contents:
+      - src: THIRD_PARTY_LICENSES.md
+        dst: /usr/share/doc/lazyc7n/THIRD_PARTY_LICENSES.md
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  # v0.x-alpha / -beta tags are published as pre-releases.
+  prerelease: auto

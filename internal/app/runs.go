@@ -245,6 +245,9 @@ func (m Model) runRowText(r runEntry) string {
 	if r.Kind == "validate" {
 		summary = ""
 	}
+	if c7n.Summarize(r.Policies).DestructiveResources > 0 {
+		summary += " " + s.Danger.Render("⚠")
+	}
 	summary += " " + s.Muted.Render(r.Label)
 	return fmt.Sprintf("%s %s %s %s", s.Muted.Render(when), m.kindBadge(r.Kind), status, summary)
 }
@@ -273,23 +276,34 @@ func (m Model) runDetail(r runEntry, visible, width int) []string {
 		facts = append(facts, exit)
 	}
 	out = append(out, s.Muted.Render(strings.Join(facts, " · ")))
-	if len(r.Argv) > 0 {
-		out = append(out, wrapped(s.Item, "$ "+strings.Join(r.Argv, " "), width-4)...)
-	}
-	if r.OutDir != "" {
-		out = append(out, s.Muted.Render("output: "+shortPath(r.OutDir)))
-	}
 	if r.Err != "" {
 		out = append(out, s.Danger.Render(r.Err))
 	}
+
+	// Where it came from: after the table, which matters more.
+	var origin []string
+	if len(r.Argv) > 0 {
+		origin = append(origin, wrapped(s.Muted, "$ "+strings.Join(r.Argv, " "), width-4)...)
+	}
+	if r.OutDir != "" {
+		origin = append(origin, s.Muted.Render("output: "+shortPath(r.OutDir)))
+	}
+
 	if len(r.Policies) == 0 {
 		if r.LogPath != "" {
 			out = append(out, "", s.Muted.Render("no policy output; press t for custodian's log"))
 		}
-		return out
+		return append(append(out, ""), origin...)
 	}
 
-	out = append(out, "", s.Bold.Render(fmt.Sprintf("%-28s %-10s %-8s %5s %7s", "POLICY", "REGION", "STATUS", "RES", "TIME")))
+	out = append(out, "")
+	out = append(out, m.runSummary(c7n.Summarize(r.Policies), width-4)...)
+
+	nameW := len("POLICY")
+	for _, p := range r.Policies {
+		nameW = min(max(nameW, len([]rune(p.Policy))), 28)
+	}
+	out = append(out, "", s.Bold.Render(fmt.Sprintf("%-*s %-10s %-8s %5s  %s", nameW, "POLICY", "REGION", "STATUS", "RES", "ACTIONS")))
 	var rows []string
 	for _, p := range r.Policies {
 		status := p.Status()
@@ -306,14 +320,88 @@ func (m Model) runDetail(r runEntry, visible, width int) []string {
 		if p.ResourceCount >= 0 {
 			res = itoa(p.ResourceCount)
 		}
-		rows = append(rows, fmt.Sprintf("%-28s %-10s %s %5s %6.2fs", truncate(p.Policy, 28), truncate(p.Region, 10), statusText, res, p.Duration))
+		rows = append(rows, s.Item.Render(fmt.Sprintf("%-*s %-10s ", nameW, truncate(p.Policy, nameW), truncate(p.Region, 10)))+
+			statusText+s.Item.Render(fmt.Sprintf(" %5s  ", res))+m.actionList(p.Actions))
 	}
-	rows = m.listLines(rows, m.runs.polCursor, max(visible-len(out), 1), width, m.focus == paneRight)
-	out = append(out, rows...)
+	room := max(visible-len(out)-len(origin)-3, min(len(rows), 3))
+	out = append(out, m.listLines(rows, m.runs.polCursor, room, width, m.focus == paneRight)...)
 	if m.focus == paneRight {
-		out = append(out, "", s.Muted.Render("enter resources · t log · esc back"))
+		out = append(out, s.Muted.Render("enter resources · t log · esc back"))
+	}
+	return append(append(out, ""), origin...)
+}
+
+// runSummary is the block at the top of a run: what was matched, and what
+// the actions would do (dry-run) or did (live) to it.
+func (m Model) runSummary(sum c7n.RunSummary, width int) []string {
+	s := m.styles
+	var out []string
+	if sum.Resources == 0 {
+		out = append(out, s.Bold.Render(fmt.Sprintf("no resources matched (%d %s)", sum.Policies, plural(sum.Policies, "policy", "policies"))))
+	} else {
+		// Matches, not distinct resources: two policies can match the same one.
+		head := fmt.Sprintf("%d %s in %d of %d %s", sum.Resources, plural(sum.Resources, "match", "matches"),
+			sum.WithMatches, sum.Policies, plural(sum.Policies, "policy", "policies"))
+		var types []string
+		for _, c := range sum.ByType {
+			types = append(types, fmt.Sprintf("%s %d", strings.TrimPrefix(c.Name, "aws."), c.N))
+		}
+		line := s.Bold.Render(head) + s.Muted.Render(" · "+strings.Join(types, " · "))
+		if len(sum.Regions) > 0 {
+			line += s.Muted.Render(" · " + strings.Join(sum.Regions, ", "))
+		}
+		out = append(out, line)
+	}
+
+	verb := func(dry, live string) string {
+		if sum.DryRun {
+			return dry
+		}
+		return live
+	}
+	counts := func(cs []c7n.Count) string {
+		var parts []string
+		for _, c := range cs {
+			parts = append(parts, fmt.Sprintf("%s %d", c.Name, c.N))
+		}
+		return strings.Join(parts, " · ")
+	}
+	if n := sum.DestructiveResources; n > 0 {
+		text := fmt.Sprintf("⚠ DESTRUCTIVE actions %s %d %s: %s", verb("would hit", "hit"), n, plural(n, "match", "matches"), counts(sum.DestructiveActions))
+		out = append(out, wrapped(s.Danger, text, width)...)
+	}
+	if n := sum.MutatingResources; n > 0 {
+		text := fmt.Sprintf("• changing actions %s %d %s: %s", verb("would hit", "hit"), n, plural(n, "match", "matches"), counts(sum.MutatingActions))
+		out = append(out, wrapped(s.Warn, text, width)...)
+	}
+	if len(sum.Errors) > 0 {
+		text := fmt.Sprintf("✗ %d %s failed: %s", len(sum.Errors), plural(len(sum.Errors), "policy", "policies"), strings.Join(sum.Errors, ", "))
+		out = append(out, wrapped(s.Danger, text, width)...)
+	}
+	if len(sum.Deployed) > 0 {
+		out = append(out, wrapped(s.Warn, "⬆ deployed as Lambda: "+strings.Join(sum.Deployed, ", "), width)...)
 	}
 	return out
+}
+
+// actionList is a policy's actions, coloured by safety class.
+func (m Model) actionList(actions []string) string {
+	s := m.styles
+	if len(actions) == 0 {
+		return s.Muted.Render("report")
+	}
+	parts := make([]string, len(actions))
+	for i, a := range actions {
+		switch c7n.ClassifyAction(a) {
+		case c7n.ActionDestructive:
+			parts[i] = s.Danger.Render(a)
+		case c7n.ActionMutating:
+			parts[i] = s.Warn.Render(a)
+		case c7n.ActionNotify:
+			parts[i] = s.OK.Render(a)
+		}
+	}
+	return strings.Join(parts, s.Muted.Render(","))
 }
 
 // logLines are the log view's lines, wrapped to width.

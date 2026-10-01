@@ -97,7 +97,7 @@ Layout: lazygit-style panes. Left column = lists, right = detail/preview, bottom
 | Screen | Left | Right |
 |---|---|---|
 | **Policies** | tree: policy dir → files → policies, fuzzy filter `/` | YAML (syntax-highlighted), summary: resource, mode, filters, **actions (mutating ones highlighted)** |
-| **Runs** | history (newest first): time, policy, dry/live, status, matched count | run detail: metadata, resources table, log tab, command line used |
+| **Runs** | history (newest first): time, dry/live, status, policies and matches, ⚠ when destructive actions matched, label | run summary (matches per resource type and region; how many matches destructive / changing actions would hit (dry-run) or hit (live), per action; failed policies; deployed Lambdas), policy table with coloured ACTIONS, log tab (`t`), command line. Counts are matches, not distinct resources (two policies can match the same resource) |
 | **Resources** | (full width, top) table of the matched resources with the columns c7n itself chooses for the resource type (`custodian report --format csv`) | (full width, bottom) card of the selected resource: report fields, tags, `c7n:MatchedFilters`; `t` switches to the raw JSON |
 | **Schema** | resource types → filters/actions | help text and JSON schema from `custodian schema` |
 | **Jobs** | running/queued jobs | live streaming stdout/stderr |

@@ -36,7 +36,10 @@ Recursos de demo: 3 buckets S3 (uno con `owner`), 3 instancias EC2 (2 con `owner
 ## 3. Runs y Resources (pantallas 2 y 3)
 
 - [ ] Runs lista los dry-runs (DRY, ✓, nº de policies y recursos), el más nuevo arriba.
-- [ ] `Enter` → tabla de policies con estado `ok` y nº de recursos.
+- [ ] Arriba del detalle, el resumen: "N matches in X of Y policies", desglose por tipo (ec2, s3, ebs) y región; en rojo cuántos matches tocarían acciones destructivas (delete, terminate…), en ámbar los que cambiarían (tag, mark-for-op…).
+- [ ] Los runs con acciones destructivas que encontraron algo llevan ⚠ en la lista.
+- [ ] Haz dry-run de las 7 policies a la vez (marca los 3 ficheros con espacio y `d`) y comprueba que las cifras cuadran con la tabla.
+- [ ] `Enter` → tabla de policies con estado `ok`, nº de recursos y las acciones coloreadas.
 - [ ] `t` muestra el log de la policy; `t` otra vez vuelve.
 - [ ] `Enter` sobre una policy → Resources: arriba una tabla con las columnas del report de c7n (en EC2: InstanceId, Name, InstanceType, LaunchTime, VpcId, IP); abajo la ficha del recurso (campos, edad, tags, "matched by").
 - [ ] `t` cambia la ficha por el JSON coloreado y vuelta.

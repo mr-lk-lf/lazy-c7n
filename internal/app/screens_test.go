@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/vstrofago/lazy-c7n/internal/c7n"
 	"github.com/vstrofago/lazy-c7n/internal/config"
 )
 
@@ -194,6 +195,53 @@ func TestResourcesWithoutReport(t *testing.T) {
 	}
 	out := plain(m)
 	for _, want := range []string{"no report", "id", "tags", "i-", "Architecture", "x86_64"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestRunSummary(t *testing.T) {
+	m := loaded(t)
+	m, _ = send(m, press('2', "2"))
+	for i, r := range m.runs.list {
+		if len(r.Policies) == 4 {
+			m.runs.cursor = i
+		}
+	}
+	out := plain(m)
+	for _, want := range []string{
+		"4 matches in 3 of 4 policies", "ec2 2", "s3 2", "us-east-1",
+		"changing actions would hit 3 matches: mark-for-op 2 · tag 1",
+		"ACTIONS", "mark-for-op", "report",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "DESTRUCTIVE") {
+		t.Errorf("destructive warning without destructive actions:\n%s", out)
+	}
+
+	for i, r := range m.runs.list {
+		if len(r.Policies) == 1 {
+			m.runs.cursor = i
+		}
+	}
+	if out := plain(m); !strings.Contains(out, "deployed as Lambda: s3-periodic") {
+		t.Errorf("no deployed line:\n%s", out)
+	}
+}
+
+func TestRunSummaryDestructive(t *testing.T) {
+	m := loaded(t)
+	m.runs.list = []runEntry{{ID: "x", Kind: "live", Finished: true, Policies: []c7n.PolicyRun{
+		{Policy: "ec2-kill", Region: "us-east-1", Resource: "aws.ec2", ResourceCount: 3, Actions: []string{"terminate"}},
+	}}}
+	m.runs.cursor = 0
+	m, _ = send(m, press('2', "2"))
+	out := plain(m)
+	for _, want := range []string{"⚠ DESTRUCTIVE actions hit 3 matches: terminate 3", "⚠"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}

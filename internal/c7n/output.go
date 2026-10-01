@@ -35,6 +35,7 @@ type PolicyRun struct {
 	ActionFiles   []string        // action-<name> files, without the prefix
 	LogHasError   bool            // custodian-run.log mentions an error
 	Spec          json.RawMessage // the policy as c7n loaded it (metadata.json "policy")
+	Actions       []string        // action types of the policy, in order
 }
 
 // Status is a one-word summary for lists.
@@ -133,6 +134,7 @@ func readPolicyDir(dir, region string) PolicyRun {
 		}
 		if json.Unmarshal(data, &spec) == nil {
 			r.Spec = spec.Policy
+			r.Actions = specActions(spec.Policy)
 		}
 		if json.Unmarshal(data, &md) == nil {
 			if md.Policy.Name != "" {
@@ -331,3 +333,31 @@ func resourceTags(fields map[string]any) []Tag {
 
 // ErrNoOutput is returned when a dir has no c7n output in it.
 var ErrNoOutput = errors.New("no c7n output found (expected <dir>/<policy>/metadata.json)")
+
+// specActions lists the action types of a policy spec as JSON. An action
+// is either a string ("delete") or an object with a type.
+func specActions(spec json.RawMessage) []string {
+	var p struct {
+		Actions []json.RawMessage `json:"actions"`
+	}
+	if json.Unmarshal(spec, &p) != nil {
+		return nil
+	}
+	var out []string
+	for _, a := range p.Actions {
+		var name string
+		if json.Unmarshal(a, &name) == nil {
+			out = append(out, name)
+			continue
+		}
+		var obj struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(a, &obj) == nil && obj.Type != "" {
+			out = append(out, obj.Type)
+		} else {
+			out = append(out, "?")
+		}
+	}
+	return out
+}

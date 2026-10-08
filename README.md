@@ -1,16 +1,69 @@
+<div align="center">
+
 # lazy-c7n
 
-A terminal UI for the [Cloud Custodian](https://cloudcustodian.io/) CLI, in the spirit of `lazygit` and `lazydocker`: browse your policies, validate them, dry-run them, run them, and read the results and logs, without memorising flags.
+**Cloud Custodian, without memorising a single flag.**
 
-See [`docs/SPEC.md`](docs/SPEC.md) for the design and roadmap.
+A fast, keyboard-driven terminal UI for [`custodian`](https://cloudcustodian.io/): browse your policies, validate, dry-run, run, and dig through results and logs, all from one screen.
 
-## Screenshots
+*In the spirit of `lazygit` and `lazydocker`.*
 
-Early scaffold (M0): the screen frame, tabs and key help are in place; the screens themselves are still empty.
+[![CI](https://github.com/mr-lk-lf/lazy-c7n/actions/workflows/ci.yml/badge.svg)](https://github.com/mr-lk-lf/lazy-c7n/actions/workflows/ci.yml)
+![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)
+![Status](https://img.shields.io/badge/status-early%20alpha-orange)
 
-![Policies screen](docs/screenshots/policies.png)
+![lazy-c7n Policies screen](docs/screenshots/policies.png)
+
+</div>
+
+## Why you'll like it
+
+You already write c7n YAML. But the loop around it is a pile of long commands: `custodian validate`, `custodian run --dryrun -s ./out -p 's3-*' -r us-east-1 ...`, then `cat out/*/resources.json | jq ...`. lazy-c7n turns that loop into something you can drive with a few keys.
+
+- **Everything in one place.** Policies, runs, matched resources, logs and the c7n schema, one tab each.
+- **Safe by default.** Dry-run is the default. Live runs sit behind a typed confirmation that can't be skipped by accident, with extra warnings for destructive actions.
+- **No magic.** It is a thin wrapper: the real `custodian` does all the work and lazy-c7n shows you the exact command it runs.
+- **Local and private.** One binary, no server, no database, no telemetry. Credentials come from your environment and are never stored or displayed.
+- **Lenient parsing.** Unknown fields in policies and output are ignored, so it keeps working as c7n evolves.
+
+## Where it is today
+
+lazy-c7n is **early alpha**. Be honest with yourself before you star it: the foundation is built and tested, but the features that make it shine are being added milestone by milestone.
+
+| Milestone | What | State |
+|---|---|---|
+| M0 | Scaffold: config loading, tabs, key help, clean terminal setup/teardown, CI on Linux/macOS/Windows | Done |
+| M1 | Read-only browser: policy tree, YAML view, runs and resources from an existing output dir | Next |
+| M2 | Validate and dry-run with live log streaming and run history | Planned |
+| M3 | Live runs with preflight and typed confirmation | Planned |
+| M4 | Schema browser, fuzzy search, `$EDITOR` integration, themes | Planned |
+| M5 | Prebuilt binaries, Homebrew, AUR, Scoop | Planned |
+
+Full design in [`docs/SPEC.md`](docs/SPEC.md).
+
+## Try it
+
+It takes about a minute (details in [Installation](#installation)):
+
+```sh
+git clone https://github.com/mr-lk-lf/lazy-c7n.git
+cd lazy-c7n && go build -o lazyc7n ./cmd/lazyc7n && ./lazyc7n
+```
+
+Hop between screens with `Tab` / `Shift+Tab`, press `?` for keys, `q` to quit.
 
 ![Key help](docs/screenshots/help.png)
+
+## Help shape it
+
+This is the best moment to influence the project. Try it, then:
+
+- Open an issue with the workflow you wish a c7n TUI made easier.
+- Tell us what breaks on your OS, terminal or c7n version.
+- Star the repo if you want to see it grow.
+
+Contributions are welcome. Read [`docs/SPEC.md`](docs/SPEC.md) first; dev notes live in [`CLAUDE.md`](CLAUDE.md).
 
 ## Installation
 

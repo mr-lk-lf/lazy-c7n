@@ -4,6 +4,14 @@ A terminal UI for the [Cloud Custodian](https://cloudcustodian.io/) CLI, in the 
 
 See [`docs/SPEC.md`](docs/SPEC.md) for the design and roadmap.
 
+## Screenshots
+
+Early scaffold (M0): the screen frame, tabs and key help are in place; the screens themselves are still empty.
+
+![Policies screen](docs/screenshots/policies.png)
+
+![Key help](docs/screenshots/help.png)
+
 ## Principles
 
 - **Thin wrapper.** The real `custodian` executable does all the work; lazy-c7n shows you the exact command it runs.

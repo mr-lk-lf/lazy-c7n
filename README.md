@@ -2,7 +2,7 @@
 
 A terminal UI for the [Cloud Custodian](https://cloudcustodian.io/) CLI, in the spirit of `lazygit` and `lazydocker`: browse your policies, validate them, dry-run them, run them, and read the results and logs, without memorising flags.
 
-> **Status: pre-alpha — scaffold only (M0).** Nothing useful to run yet. See [`docs/SPEC.md`](docs/SPEC.md).
+See [`docs/SPEC.md`](docs/SPEC.md) for the design and roadmap.
 
 ## Principles
 

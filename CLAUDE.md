@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## State of the repo
 
-Pre-alpha, M0 scaffold in place (Go + Bubble Tea: config loading, empty screens, pure `Update`). The source of truth is `docs/SPEC.md`; the next steps are in `docs/HANDOFF.md`. Read both before doing anything.
+M0 scaffold in place (Go + Bubble Tea: config loading, empty screens, pure `Update`). The source of truth is `docs/SPEC.md`; the next steps are in `docs/HANDOFF.md`. Read both before doing anything.
 
 ## What this is
 
